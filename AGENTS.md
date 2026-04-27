@@ -38,7 +38,7 @@
 
 ## 重要決定
 
-- 這個專案是 Whisper，不是抽獎系統
+- 這個專案是 Whisper
 - 以目前實際可執行的 `app.py`、`index.html`、`start.bat` 為主
 - 字幕下載格式使用 `UTF-8 with BOM`
 - Whisper 模型採 lazy loading
