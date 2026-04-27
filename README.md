@@ -62,6 +62,6 @@ python -m pip install -r requirements.txt
 
 ## 接手提醒
 
-- 這個專案是 Whisper 字幕工具，不是抽獎系統
+- 這個專案是 Whisper 字幕工具
 - 後續對話請一律使用中文
 - 若要快速接手，先看 `memory.md`
