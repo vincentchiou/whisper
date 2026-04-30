@@ -3,26 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Whisper 字幕神器</title>
+  <title>Whisper 字幕神器 V2</title>
   <style>
     :root {
-      --bg-1: #fff2f8;
-      --bg-2: #fff6e8;
-      --bg-3: #ecf5ff;
-      --card: rgba(255, 255, 255, 0.88);
-      --line: rgba(255, 255, 255, 0.54);
-      --text: #3f3154;
-      --muted: #8f86a3;
-      --brand-1: #ff6ba5;
-      --brand-2: #ff9950;
-      --brand-3: #6f73ff;
-      --ok: #1f9d68;
-      --warn: #d07b00;
-      --danger: #d44d6d;
-      --shadow: 0 18px 48px rgba(117, 74, 149, 0.14);
+      --bg-1: #fff1f8;
+      --bg-2: #fff7e9;
+      --bg-3: #eef5ff;
+      --card: rgba(255, 255, 255, 0.9);
+      --line: rgba(255, 255, 255, 0.58);
+      --text: #433257;
+      --muted: #8e82a6;
+      --brand-1: #ff6c9d;
+      --brand-2: #ff9f50;
+      --brand-3: #6c73ff;
+      --ok: #1f9a69;
+      --warn: #b77700;
+      --danger: #d44872;
+      --shadow: 0 20px 50px rgba(126, 88, 154, 0.15);
       --radius-xl: 28px;
       --radius-lg: 20px;
-      --radius-md: 14px;
+      --radius-md: 15px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -32,14 +32,14 @@
       font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
       color: var(--text);
       background:
-        radial-gradient(circle at top left, rgba(255, 137, 188, 0.28), transparent 34%),
-        radial-gradient(circle at top right, rgba(121, 112, 255, 0.18), transparent 28%),
+        radial-gradient(circle at top left, rgba(255, 122, 173, 0.24), transparent 34%),
+        radial-gradient(circle at top right, rgba(108, 115, 255, 0.16), transparent 28%),
         linear-gradient(135deg, var(--bg-1), var(--bg-2) 44%, var(--bg-3));
-      padding: 20px 14px 40px;
+      padding: 18px 12px 36px;
     }
 
     .page {
-      width: min(1100px, 100%);
+      width: min(1120px, 100%);
       margin: 0 auto;
     }
 
@@ -48,7 +48,7 @@
       overflow: hidden;
       padding: 26px 22px;
       border-radius: 30px;
-      background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.58));
+      background: linear-gradient(135deg, rgba(255,255,255,0.82), rgba(255,255,255,0.6));
       border: 1px solid var(--line);
       box-shadow: var(--shadow);
       margin-bottom: 18px;
@@ -59,15 +59,15 @@
       content: "";
       position: absolute;
       border-radius: 999px;
-      filter: blur(6px);
     }
 
     .hero::before {
       width: 180px;
       height: 180px;
-      right: -30px;
+      right: -28px;
       top: -36px;
-      background: rgba(255, 107, 165, 0.18);
+      background: rgba(255, 108, 157, 0.16);
+      filter: blur(8px);
     }
 
     .hero::after {
@@ -75,17 +75,18 @@
       height: 120px;
       left: -14px;
       bottom: -18px;
-      background: rgba(111, 115, 255, 0.14);
+      background: rgba(108, 115, 255, 0.14);
+      filter: blur(8px);
     }
 
     .hero h1 {
       position: relative;
       z-index: 1;
-      font-size: clamp(1.8rem, 5vw, 2.9rem);
+      font-size: clamp(1.9rem, 5vw, 3rem);
       font-weight: 900;
-      letter-spacing: 1px;
       line-height: 1.15;
-      background: linear-gradient(90deg, #f04685, #ff8d4d, #6f73ff);
+      letter-spacing: 1px;
+      background: linear-gradient(90deg, #f24c89, #ff9349, #6672ff);
       -webkit-background-clip: text;
       background-clip: text;
       color: transparent;
@@ -94,14 +95,14 @@
     .hero p {
       position: relative;
       z-index: 1;
+      max-width: 760px;
       margin-top: 10px;
       color: var(--muted);
       font-size: 0.96rem;
-      line-height: 1.7;
-      max-width: 680px;
+      line-height: 1.75;
     }
 
-    .hero-badges {
+    .badge-row {
       position: relative;
       z-index: 1;
       display: flex;
@@ -113,17 +114,17 @@
     .badge {
       padding: 8px 12px;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.78);
-      border: 1px solid rgba(255,255,255,0.66);
+      background: rgba(255,255,255,0.82);
+      border: 1px solid rgba(255,255,255,0.72);
+      color: #7c5a8d;
       font-size: 0.82rem;
-      font-weight: 700;
-      color: #735383;
+      font-weight: 800;
       box-shadow: 0 8px 18px rgba(154, 102, 140, 0.08);
     }
 
     .grid {
       display: grid;
-      grid-template-columns: 1.08fr 0.92fr;
+      grid-template-columns: 1.04fr 0.96fr;
       gap: 18px;
     }
 
@@ -142,9 +143,9 @@
 
     .section-head {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      align-items: center;
+      gap: 10px;
       margin-bottom: 16px;
     }
 
@@ -158,28 +159,29 @@
       font-size: 0.82rem;
     }
 
+    .stack {
+      display: grid;
+      gap: 14px;
+    }
+
     .drop-zone {
-      position: relative;
       display: grid;
       place-items: center;
       min-height: 220px;
-      padding: 22px;
+      padding: 24px;
       border-radius: 24px;
-      border: 2px dashed rgba(255, 116, 152, 0.45);
+      border: 2px dashed rgba(255, 108, 157, 0.48);
       background:
-        linear-gradient(180deg, rgba(255,255,255,0.68), rgba(255,255,255,0.42)),
-        linear-gradient(135deg, rgba(255, 107, 165, 0.1), rgba(111, 115, 255, 0.08));
-      transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        linear-gradient(180deg, rgba(255,255,255,0.7), rgba(255,255,255,0.42)),
+        linear-gradient(135deg, rgba(255, 108, 157, 0.1), rgba(108, 115, 255, 0.08));
       cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease;
     }
 
     .drop-zone:hover,
     .drop-zone.drag-over {
       transform: translateY(-2px);
-      border-color: rgba(255, 116, 152, 0.9);
-      background:
-        linear-gradient(180deg, rgba(255,255,255,0.86), rgba(255,255,255,0.56)),
-        linear-gradient(135deg, rgba(255, 107, 165, 0.14), rgba(111, 115, 255, 0.12));
+      border-color: rgba(255, 108, 157, 0.88);
     }
 
     .drop-inner {
@@ -188,7 +190,6 @@
 
     .drop-icon {
       font-size: 3.8rem;
-      line-height: 1;
       animation: floaty 3s ease-in-out infinite;
     }
 
@@ -198,13 +199,13 @@
     }
 
     .drop-title {
-      margin-top: 12px;
-      font-size: 1.14rem;
+      margin-top: 10px;
+      font-size: 1.12rem;
       font-weight: 900;
     }
 
     .drop-hint {
-      margin-top: 10px;
+      margin-top: 8px;
       color: var(--muted);
       font-size: 0.88rem;
       line-height: 1.7;
@@ -212,34 +213,76 @@
 
     .chip-row {
       display: flex;
+      justify-content: center;
       flex-wrap: wrap;
       gap: 8px;
-      justify-content: center;
       margin-top: 14px;
     }
 
     .chip {
       padding: 6px 10px;
       border-radius: 999px;
-      background: rgba(255,255,255,0.78);
-      border: 1px solid rgba(255,255,255,0.72);
-      color: #8a5d91;
+      background: rgba(255,255,255,0.84);
+      border: 1px solid rgba(255,255,255,0.74);
       font-size: 0.78rem;
-      font-weight: 700;
+      font-weight: 800;
+      color: #855e92;
     }
 
-    input[type="file"] { display: none; }
+    .panel-box {
+      padding: 16px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.74);
+      border: 1px solid rgba(236, 228, 245, 0.9);
+    }
+
+    .panel-box h3 {
+      font-size: 0.96rem;
+      font-weight: 900;
+      margin-bottom: 8px;
+    }
+
+    .panel-box p {
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 0.86rem;
+      margin-bottom: 12px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .text-input {
+      flex: 1;
+      min-width: 220px;
+      border: 2px solid rgba(214, 200, 235, 0.75);
+      border-radius: 16px;
+      padding: 13px 14px;
+      font: inherit;
+      color: var(--text);
+      background: rgba(255,255,255,0.92);
+    }
+
+    .text-input:focus {
+      outline: none;
+      border-color: rgba(255, 108, 157, 0.72);
+      box-shadow: 0 0 0 4px rgba(255, 108, 157, 0.12);
+    }
 
     .filename {
-      margin-top: 16px;
       padding: 10px 12px;
       border-radius: 14px;
-      background: rgba(255,255,255,0.75);
-      color: #7a6189;
+      background: rgba(255,255,255,0.78);
+      color: #765d88;
       font-size: 0.88rem;
-      font-weight: 700;
+      font-weight: 800;
       word-break: break-all;
     }
+
+    .hidden { display: none !important; }
 
     .mode-grid {
       display: grid;
@@ -252,7 +295,7 @@
       border: 2px solid rgba(194, 170, 229, 0.5);
       border-radius: 18px;
       padding: 14px 10px;
-      background: rgba(255,255,255,0.8);
+      background: rgba(255,255,255,0.84);
       color: #8b7da3;
       font: inherit;
       cursor: pointer;
@@ -262,46 +305,35 @@
 
     .seg-btn strong {
       display: block;
-      color: #66477d;
       font-size: 0.96rem;
+      color: #66477d;
       margin-bottom: 4px;
     }
 
     .seg-btn small {
       display: block;
-      font-size: 0.75rem;
       line-height: 1.5;
+      font-size: 0.75rem;
     }
 
-    .seg-btn:hover {
-      transform: translateY(-2px);
-      border-color: rgba(255, 107, 165, 0.6);
-    }
+    .seg-btn:hover { transform: translateY(-2px); }
 
     .seg-active {
       border-color: transparent;
-      background: linear-gradient(135deg, rgba(255, 107, 165, 0.18), rgba(111, 115, 255, 0.16));
+      background: linear-gradient(135deg, rgba(255, 108, 157, 0.18), rgba(108, 115, 255, 0.16));
       box-shadow: 0 12px 22px rgba(135, 97, 173, 0.14);
     }
 
-    .progress-panel,
-    .error-panel,
-    .result-panel {
-      min-height: 100%;
-    }
-
-    .hidden { display: none !important; }
-
     .status-card {
-      padding: 26px 22px;
+      padding: 26px 20px;
       border-radius: 24px;
-      background: linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.55));
-      border: 1px solid rgba(255,255,255,0.7);
-      min-height: 280px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.58));
+      border: 1px solid rgba(255,255,255,0.72);
+      min-height: 320px;
       display: flex;
       flex-direction: column;
-      justify-content: center;
       align-items: center;
+      justify-content: center;
       text-align: center;
     }
 
@@ -314,22 +346,20 @@
       border-right-color: var(--brand-2);
       border-bottom-color: var(--brand-3);
       animation: spin 0.9s linear infinite;
-      margin-bottom: 18px;
+      margin-bottom: 16px;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     .status-title {
-      font-size: 1.22rem;
+      font-size: 1.2rem;
       font-weight: 900;
       margin-bottom: 8px;
     }
 
     .status-text {
       color: var(--muted);
-      line-height: 1.8;
+      line-height: 1.75;
       font-size: 0.92rem;
     }
 
@@ -390,11 +420,12 @@
       color: var(--muted);
       margin-top: 4px;
       font-size: 0.88rem;
+      line-height: 1.65;
     }
 
     .stats-card {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 10px;
       margin-bottom: 16px;
     }
@@ -408,7 +439,7 @@
 
     .stat-item strong {
       display: block;
-      font-size: 1.08rem;
+      font-size: 1.04rem;
       margin-bottom: 6px;
     }
 
@@ -423,25 +454,12 @@
       color: #d6f6e1;
       padding: 18px;
       min-height: 260px;
-      max-height: 410px;
+      max-height: 420px;
       overflow: auto;
       font-family: "Consolas", "Courier New", monospace;
       font-size: 0.83rem;
       line-height: 1.7;
       box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
-    }
-
-    .preview-wrap::-webkit-scrollbar,
-    .terminal::-webkit-scrollbar,
-    .modal-body::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    .preview-wrap::-webkit-scrollbar-thumb,
-    .terminal::-webkit-scrollbar-thumb,
-    .modal-body::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.16);
-      border-radius: 999px;
     }
 
     .btn-row,
@@ -458,22 +476,13 @@
       font: inherit;
       font-weight: 900;
       cursor: pointer;
-      transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease;
+      transition: transform 0.18s ease, filter 0.18s ease;
     }
 
     .btn:hover,
     .tool-btn:hover {
       transform: translateY(-2px);
       filter: brightness(1.03);
-    }
-
-    .btn:disabled,
-    .tool-btn:disabled {
-      cursor: not-allowed;
-      opacity: 0.58;
-      transform: none;
-      filter: none;
-      box-shadow: none;
     }
 
     .btn {
@@ -496,14 +505,13 @@
 
     .btn-soft {
       color: #6c5c7d;
-      background: linear-gradient(90deg, rgba(255,255,255,0.88), rgba(246, 240, 255, 0.9));
+      background: linear-gradient(90deg, rgba(255,255,255,0.9), rgba(246, 240, 255, 0.9));
       box-shadow: 0 10px 22px rgba(142, 123, 175, 0.12);
     }
 
     .btn-danger {
       color: white;
       background: linear-gradient(90deg, #ff8b8b, #ff5e7b);
-      box-shadow: 0 10px 22px rgba(255, 102, 136, 0.18);
     }
 
     .tool-env {
@@ -531,6 +539,7 @@
       font-size: 0.92rem;
       border: 1px solid rgba(255, 132, 164, 0.24);
       margin-top: 14px;
+      text-align: left;
     }
 
     .terminal {
@@ -656,10 +665,7 @@
       font-weight: 800;
     }
 
-    .env-name {
-      font-weight: 900;
-      margin-bottom: 4px;
-    }
+    .env-name { font-weight: 900; margin-bottom: 4px; }
 
     .env-note {
       color: var(--muted);
@@ -668,9 +674,7 @@
       word-break: break-all;
     }
 
-    .status-emoji {
-      font-size: 1.2rem;
-    }
+    .status-emoji { font-size: 1.2rem; }
 
     .device-grid {
       display: grid;
@@ -700,27 +704,19 @@
       word-break: break-word;
     }
 
-    @media (max-width: 920px) {
-      .grid {
-        grid-template-columns: 1fr;
-      }
+    @media (max-width: 960px) {
+      .grid { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 640px) {
-      body { padding: 14px 10px 30px; }
-      .hero { padding: 22px 18px; }
+      body { padding: 14px 10px 28px; }
       .card-body { padding: 18px; }
       .mode-grid,
       .stats-card,
-      .device-grid {
-        grid-template-columns: 1fr;
-      }
+      .device-grid { grid-template-columns: 1fr; }
       .modal-overlay {
         padding: 10px;
         align-items: flex-end;
-      }
-      .modal-panel {
-        border-radius: 24px 24px 18px 18px;
       }
     }
   </style>
@@ -728,13 +724,13 @@
 <body>
   <div class="page">
     <section class="hero">
-      <h1>🎵 Whisper 字幕神器</h1>
-      <p>本機 AI 自動辨識語音，支援 mp3 / mp4 / wav / m4a / ogg / webm，輸出 SRT 字幕檔。整體以手機也能順手操作為目標，適合快速整理錄音、課程影片與研習內容。</p>
-      <div class="hero-badges">
-        <div class="badge">本機轉錄</div>
-        <div class="badge">支援 CPU / GPU</div>
-        <div class="badge">輸出 UTF-8 BOM SRT</div>
-        <div class="badge">可檢查環境與安裝套件</div>
+      <h1>🎵 Whisper 字幕神器 V2</h1>
+      <p>現在除了上傳音訊或影片，也可以直接輸入 YouTube 影片網址。轉錄完成後可同時下載 SRT、純文字轉錄稿，以及依目前 YouTube 官方公開建議整理的 SEO.txt。</p>
+      <div class="badge-row">
+        <div class="badge">支援 YouTube 網址</div>
+        <div class="badge">純文字轉錄稿</div>
+        <div class="badge">SEO.txt</div>
+        <div class="badge">本機 Whisper</div>
       </div>
     </section>
 
@@ -742,28 +738,39 @@
       <section class="card">
         <div class="card-body">
           <div class="section-head">
-            <h2>上傳媒體檔</h2>
-            <span>拖曳或點一下都可以</span>
+            <h2>輸入來源</h2>
+            <span>檔案或 YouTube 皆可</span>
           </div>
 
-          <label class="drop-zone" id="drop-zone">
-            <input type="file" id="file-input" accept=".mp3,.mp4,.wav,.m4a,.ogg,.webm,audio/*,video/*">
-            <div class="drop-inner">
-              <div class="drop-icon">🎧</div>
-              <div class="drop-title">把音訊或影片拖進來</div>
-              <div class="drop-hint">或點這裡挑選檔案，完成後會自動送到本機 Whisper 進行轉錄。</div>
-              <div class="chip-row">
-                <span class="chip">mp3</span>
-                <span class="chip">mp4</span>
-                <span class="chip">wav</span>
-                <span class="chip">m4a</span>
-                <span class="chip">ogg</span>
-                <span class="chip">webm</span>
+          <div class="stack">
+            <label class="drop-zone" id="drop-zone">
+              <input type="file" id="file-input" class="hidden" accept=".mp3,.mp4,.wav,.m4a,.ogg,.webm,audio/*,video/*">
+              <div class="drop-inner">
+                <div class="drop-icon">🎧</div>
+                <div class="drop-title">拖曳音訊或影片到這裡</div>
+                <div class="drop-hint">或點一下挑選檔案，支援本機上傳後直接進行 Whisper 轉錄。</div>
+                <div class="chip-row">
+                  <span class="chip">mp3</span>
+                  <span class="chip">mp4</span>
+                  <span class="chip">wav</span>
+                  <span class="chip">m4a</span>
+                  <span class="chip">ogg</span>
+                  <span class="chip">webm</span>
+                </div>
+              </div>
+            </label>
+
+            <div class="panel-box">
+              <h3>貼上 YouTube 影片網址</h3>
+              <p>系統會先下載影片音訊，再交給本機 Whisper 轉錄。首次使用前請先確認已安裝 <code>yt-dlp</code>。</p>
+              <div class="input-row">
+                <input class="text-input" id="youtube-url" type="url" placeholder="https://www.youtube.com/watch?v=...">
+                <button class="btn btn-primary" id="youtube-submit" type="button" style="flex:0 0 auto; min-width:150px;">轉錄 YouTube</button>
               </div>
             </div>
-          </label>
 
-          <div class="filename hidden" id="filename-badge"></div>
+            <div class="filename hidden" id="filename-badge"></div>
+          </div>
 
           <div class="section-head" style="margin-top:20px">
             <h2>字幕切割粒度</h2>
@@ -788,11 +795,11 @@
       </section>
 
       <section class="card">
-        <div class="card-body progress-panel" id="progress-area">
+        <div class="card-body" id="progress-area">
           <div class="status-card">
             <div class="spinner"></div>
             <div class="status-title" id="status-title">準備就緒</div>
-            <div class="status-text" id="status-text">請先選擇音訊或影片檔，系統會在本機進行 Whisper 轉錄。</div>
+            <div class="status-text" id="status-text">請先選擇音訊、影片檔，或輸入 YouTube 網址。</div>
             <div class="elapsed hidden" id="elapsed-text"></div>
             <div class="progress-wrap hidden" id="progress-wrap">
               <div class="progress-fill"></div>
@@ -800,43 +807,49 @@
           </div>
         </div>
 
-        <div class="card-body result-panel hidden" id="result-area">
+        <div class="card-body hidden" id="result-area">
           <div class="result-banner">
             <div class="result-icon">✨</div>
             <div>
-              <div class="result-title">字幕產生完成</div>
-              <div class="result-subtitle" id="result-subtitle">可以直接預覽、下載，或重新上傳其他檔案。</div>
+              <div class="result-title">第二版輸出完成</div>
+              <div class="result-subtitle" id="result-subtitle">可以下載 SRT、轉錄稿 TXT、SEO.txt。</div>
             </div>
           </div>
 
           <div class="stats-card">
             <div class="stat-item">
+              <strong id="stat-source">-</strong>
+              <span>來源</span>
+            </div>
+            <div class="stat-item">
               <strong id="stat-segments">0</strong>
               <span>字幕段數</span>
             </div>
             <div class="stat-item">
-              <strong id="stat-lines">0</strong>
-              <span>預覽行數</span>
+              <strong id="stat-title">-</strong>
+              <span>標題</span>
             </div>
             <div class="stat-item">
               <strong id="stat-filename">-</strong>
-              <span>輸出檔名</span>
+              <span>SRT 檔名</span>
             </div>
           </div>
 
           <div class="preview-wrap" id="srt-preview"></div>
 
           <div class="btn-row" style="margin-top:16px">
-            <button class="btn btn-primary" type="button" id="download-btn">下載 SRT</button>
-            <button class="btn btn-soft" type="button" id="reset-btn">重新上傳</button>
+            <button class="btn btn-primary" type="button" id="download-srt-btn">下載 SRT</button>
+            <button class="btn btn-soft" type="button" id="download-txt-btn">下載轉錄稿 TXT</button>
+            <button class="btn btn-soft" type="button" id="download-seo-btn">下載 SEO.txt</button>
+            <button class="btn btn-soft" type="button" id="reset-btn">重新輸入</button>
           </div>
         </div>
 
-        <div class="card-body error-panel hidden" id="error-area">
+        <div class="card-body hidden" id="error-area">
           <div class="status-card">
             <div class="drop-icon">⚠️</div>
             <div class="status-title">發生問題了</div>
-            <div class="status-text">這次轉錄沒有成功，下面列出伺服器回傳的訊息。</div>
+            <div class="status-text">這次轉錄沒有成功，下面是伺服器回傳的訊息。</div>
             <div class="error-box" id="error-msg"></div>
             <div class="btn-row" style="width:100%; margin-top:14px">
               <button class="btn btn-soft" type="button" id="retry-btn">再試一次</button>
@@ -865,21 +878,21 @@
   </div>
 
   <script>
-    // 中文註解：集中管理目前前端狀態，避免不同功能互相踩到。
     const state = {
       file: null,
       segMode: "standard",
       currentJobId: null,
-      currentResultFilename: "",
+      currentResult: null,
       pollingTimer: null,
-      startTime: 0,
       elapsedTimer: null,
       installPollTimer: null,
-      lastInstallId: null
+      startTime: 0
     };
 
     const dropZone = document.getElementById("drop-zone");
     const fileInput = document.getElementById("file-input");
+    const youtubeUrlInput = document.getElementById("youtube-url");
+    const youtubeSubmit = document.getElementById("youtube-submit");
     const filenameBadge = document.getElementById("filename-badge");
     const progressArea = document.getElementById("progress-area");
     const resultArea = document.getElementById("result-area");
@@ -891,8 +904,9 @@
     const srtPreview = document.getElementById("srt-preview");
     const errorMsg = document.getElementById("error-msg");
     const resultSubtitle = document.getElementById("result-subtitle");
+    const statSource = document.getElementById("stat-source");
     const statSegments = document.getElementById("stat-segments");
-    const statLines = document.getElementById("stat-lines");
+    const statTitle = document.getElementById("stat-title");
     const statFilename = document.getElementById("stat-filename");
     const modalOverlay = document.getElementById("modal-overlay");
     const modalTitle = document.getElementById("modal-title");
@@ -923,18 +937,27 @@
       elapsedText.textContent = `已等待 ${minutes} 分 ${remainSeconds} 秒`;
     }
 
+    function escapeHtml(text) {
+      return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
     function setIdleStatus() {
       showPanel("progress");
       statusTitle.textContent = "準備就緒";
-      statusText.textContent = "請先選擇音訊或影片檔，系統會在本機進行 Whisper 轉錄。";
+      statusText.textContent = "請先選擇音訊、影片檔，或輸入 YouTube 網址。";
       elapsedText.classList.add("hidden");
       progressWrap.classList.add("hidden");
     }
 
-    function setProcessingStatus(fileName) {
+    function setProcessingStatus(label) {
       showPanel("progress");
       statusTitle.textContent = "Whisper 正在辨識中";
-      statusText.textContent = `正在處理 ${fileName}，首次載入模型或 CPU 模式會比較久，請稍等。`;
+      statusText.textContent = `正在處理 ${label}，首次載入模型、下載 YouTube、或使用 CPU 模式都可能需要比較久。`;
       progressWrap.classList.remove("hidden");
       elapsedText.classList.remove("hidden");
       state.startTime = Date.now();
@@ -947,6 +970,17 @@
       resetTimers();
       showPanel("error");
       errorMsg.textContent = message || "發生未知錯誤。";
+    }
+
+    function setFile(file) {
+      state.file = file || null;
+      if (!state.file) {
+        filenameBadge.classList.add("hidden");
+        filenameBadge.textContent = "";
+        return;
+      }
+      filenameBadge.classList.remove("hidden");
+      filenameBadge.textContent = `目前檔案：${state.file.name}`;
     }
 
     function openModal(title, html) {
@@ -965,66 +999,58 @@
       }
     }
 
-    function escapeHtml(text) {
-      return String(text)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#39;");
-    }
-
-    function setFile(file) {
-      state.file = file || null;
-      if (!state.file) {
-        filenameBadge.classList.add("hidden");
-        filenameBadge.textContent = "";
-        return;
-      }
-
-      filenameBadge.classList.remove("hidden");
-      filenameBadge.textContent = `目前檔案：${state.file.name}`;
-    }
-
-    async function startUpload(file) {
-      if (!file) return;
-
+    async function submitForm(formData, displayLabel) {
       resetTimers();
       state.currentJobId = null;
-      state.currentResultFilename = "";
-      setProcessingStatus(file.name);
-
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("seg_mode", state.segMode);
+      state.currentResult = null;
+      setProcessingStatus(displayLabel);
 
       try {
         const response = await fetch("/upload", { method: "POST", body: formData });
         const data = await response.json();
-
         if (!response.ok || data.error || !data.job_id) {
           throw new Error(data.error || `HTTP ${response.status}`);
         }
-
         state.currentJobId = data.job_id;
         startPolling();
       } catch (error) {
-        setError(`上傳失敗：${error.message}`);
+        setError(`啟動轉錄失敗：${error.message}`);
       }
     }
 
-    function renderResult(srt, filename) {
+    async function startUpload(file) {
+      if (!file) return;
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("seg_mode", state.segMode);
+      await submitForm(formData, file.name);
+    }
+
+    async function startYoutubeUpload() {
+      const youtubeUrl = youtubeUrlInput.value.trim();
+      if (!youtubeUrl) {
+        alert("請先輸入 YouTube 網址。");
+        youtubeUrlInput.focus();
+        return;
+      }
+      const formData = new FormData();
+      formData.append("youtube_url", youtubeUrl);
+      formData.append("seg_mode", state.segMode);
+      await submitForm(formData, "YouTube 影片");
+    }
+
+    function renderResult(data) {
       resetTimers();
-      state.currentResultFilename = filename || "result.srt";
-
+      state.currentResult = data;
+      const srt = data.srt || "";
       const lines = srt.split(/\r?\n/);
-      const segmentCount = srt.split(/\r?\n\r?\n/).filter(block => block.trim()).length;
-      const previewLines = lines.length > 120 ? lines.slice(0, 120).join("\n") + "\n\n...（預覽已截斷，請下載完整 SRT）" : srt;
+      const previewLines = lines.length > 120 ? lines.slice(0, 120).join("\n") + "\n\n...（預覽已截斷，請下載完整檔案）" : srt;
 
-      resultSubtitle.textContent = `轉錄完成，輸出檔名為 ${state.currentResultFilename}`;
-      statSegments.textContent = segmentCount;
-      statLines.textContent = lines.filter(line => line.trim()).length;
-      statFilename.textContent = state.currentResultFilename;
+      resultSubtitle.textContent = `已完成 ${data.filename}、${data.text_filename}、${data.seo_filename} 三種輸出。`;
+      statSource.textContent = data.source_type === "youtube" ? "YouTube" : "本機檔案";
+      statSegments.textContent = data.segment_count || 0;
+      statTitle.textContent = data.original_title || "未提供";
+      statFilename.textContent = data.filename || "-";
       srtPreview.textContent = previewLines;
       showPanel("result");
     }
@@ -1036,23 +1062,20 @@
 
       state.pollingTimer = setInterval(async () => {
         if (!state.currentJobId) return;
-
         try {
           const response = await fetch(`/status/${state.currentJobId}`);
           const data = await response.json();
-
           if (!response.ok) {
             throw new Error(data.error_msg || data.status || `HTTP ${response.status}`);
           }
-
           if (data.status === "done") {
-            renderResult(data.srt || "", data.filename || "result.srt");
+            renderResult(data);
           } else if (data.status === "error") {
             setError(data.error_msg || "伺服器回報轉錄失敗。");
           } else if (data.status === "cancelled") {
             setError("已取消轉錄。");
           } else if (data.status === "not_found") {
-            setError("找不到這筆工作，請重新上傳。");
+            setError("找不到這筆工作，請重新輸入。");
           }
         } catch (error) {
           setError(`輪詢狀態失敗：${error.message}`);
@@ -1063,9 +1086,12 @@
     function resetAll() {
       resetTimers();
       state.currentJobId = null;
-      state.currentResultFilename = "";
-      setFile(null);
+      state.currentResult = null;
+      state.file = null;
       fileInput.value = "";
+      youtubeUrlInput.value = "";
+      filenameBadge.classList.add("hidden");
+      filenameBadge.textContent = "";
       setIdleStatus();
     }
 
@@ -1085,7 +1111,7 @@
         <div class="status-card" style="min-height:220px">
           <div class="spinner"></div>
           <div class="status-title">正在檢查環境</div>
-          <div class="status-text">系統正在確認 Python、Flask、Whisper、PyTorch 與 ffmpeg。</div>
+          <div class="status-text">系統正在確認 Python、Flask、Whisper、yt-dlp、PyTorch 與 ffmpeg。</div>
         </div>
       `);
 
@@ -1099,18 +1125,15 @@
     }
 
     function renderEnvCheckResult(data) {
-      const items = ["python", "flask", "whisper", "torch", "ffmpeg"];
+      const items = ["python", "flask", "whisper", "yt_dlp", "torch", "ffmpeg"];
       const missing = data.missing_pip || [];
       const pythonOk = !data.python || data.python.ok;
       const pythonBlocker = data.python_blocker || "";
       const allGood = pythonOk && missing.length === 0 && data.ffmpeg && data.ffmpeg.ok;
-
-      const summaryClass = allGood ? "summary-ok" : (pythonBlocker ? "summary-err" : (missing.length > 0 ? "summary-warn" : "summary-err"));
+      const summaryClass = allGood ? "summary-ok" : (pythonBlocker ? "summary-err" : "summary-warn");
       const summaryText = allGood
-        ? "環境檢查完成，主要元件都已就緒，可以開始轉錄。"
-        : pythonBlocker
-          ? "Python 版本需要先調整，避免 PyTorch / Whisper 安裝失敗。"
-        : "環境檢查完成，部分項目需要補安裝或確認設定。";
+        ? "環境檢查完成，第二版所需元件都已就緒。"
+        : (pythonBlocker || "環境檢查完成，部分項目需要補安裝或確認設定。");
 
       const rows = items.map(key => {
         const item = data[key] || {};
@@ -1129,27 +1152,15 @@
         `;
       }).join("");
 
-      const blockerCard = pythonBlocker
-        ? `<div class="device-card" style="margin-bottom:14px">
-            <strong>Python 版本提醒</strong>
-            <span>${escapeHtml(pythonBlocker)}</span>
-          </div>`
-        : "";
-
-      const installButton = missing.length > 0 && !pythonBlocker
-        ? `<button class="btn btn-primary" type="button" style="width:100%; margin-top:14px" onclick='startInstall(${JSON.stringify(missing)})'>安裝缺少的套件：${escapeHtml(missing.join(", "))}</button>`
+      const installButton = missing.length > 0
+        ? `<button class="btn btn-primary" type="button" style="width:100%; margin-top:14px" onclick='startInstall(${JSON.stringify(missing)})'>安裝缺少套件：${escapeHtml(missing.join(", "))}</button>`
         : "";
 
       modalBody.innerHTML = `
         <div class="summary-banner ${summaryClass}">${summaryText}</div>
-        ${blockerCard}
         <table class="env-table">
           <thead>
-            <tr>
-              <th></th>
-              <th>項目</th>
-              <th>說明</th>
-            </tr>
+            <tr><th></th><th>項目</th><th>說明</th></tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
@@ -1162,7 +1173,7 @@
         <div class="status-card" style="min-height:220px">
           <div class="spinner"></div>
           <div class="status-title">正在整理安裝資訊</div>
-          <div class="status-text">先幫您確認目前哪些套件還沒安裝完成。</div>
+          <div class="status-text">先幫您確認目前第二版還缺哪些套件。</div>
         </div>
       `);
 
@@ -1172,29 +1183,19 @@
         const missing = data.missing_pip || [];
         const pythonBlocker = data.python_blocker || "";
         const allInstalled = missing.length === 0 && !pythonBlocker;
-        const blockerCard = pythonBlocker
-          ? `<div class="device-card" style="margin-bottom:14px">
-              <strong>Python 版本提醒</strong>
-              <span>${escapeHtml(pythonBlocker)}</span>
-            </div>`
-          : "";
-        const installAction = missing.length > 0 && !pythonBlocker
-          ? `<button class="btn btn-primary" type="button" style="width:100%; margin-bottom:14px" onclick='startInstall(${JSON.stringify(missing)})'>開始安裝缺少套件</button>`
-          : "";
 
         modalBody.innerHTML = `
-          <div class="summary-banner ${allInstalled ? "summary-ok" : "summary-warn"}">
-            ${allInstalled ? "目前需要的 pip 套件都已安裝。" : (pythonBlocker ? "請先調整 Python 版本，再安裝 Whisper / PyTorch。" : `目前缺少：${escapeHtml(missing.join(", "))}`)}
+          <div class="summary-banner ${allInstalled ? "summary-ok" : (pythonBlocker ? "summary-err" : "summary-warn")}">
+            ${allInstalled ? "第二版所需 pip 套件都已安裝。" : (pythonBlocker || `目前缺少：${escapeHtml(missing.join(", "))}`)}
           </div>
-          ${blockerCard}
           <div class="device-card" style="margin-bottom:14px">
-            <strong>建議安裝項目</strong>
-            <span>一般情況至少需要 Flask 與 openai-whisper。Windows 上建議使用 Python 3.11 或 3.12；首次安裝時，PyTorch 可能會一起下載，容量約 2~3 GB。</span>
+            <strong>第二版重點依賴</strong>
+            <span>這版新增 YouTube 網址輸入，因此除了 Flask 與 openai-whisper，也需要 <code>yt-dlp</code>。</span>
           </div>
-          ${installAction}
+          ${allInstalled ? "" : `<button class="btn btn-primary" type="button" style="width:100%; margin-bottom:14px" onclick='startInstall(${JSON.stringify(missing)})'>開始安裝缺少套件</button>`}
           <div class="device-card">
             <strong>提醒</strong>
-            <span>安裝完成後，請重新執行 start.bat。若 ffmpeg 尚未就緒，可使用 CapCut 內建版本或手動安裝 ffmpeg。</span>
+            <span>安裝完成後，請重新執行 start.bat。若要處理 YouTube 影片，網路與 ffmpeg 也要正常。</span>
           </div>
         `;
       } catch (error) {
@@ -1205,7 +1206,7 @@
     function startInstall(packages) {
       modalTitle.textContent = "套件安裝中";
       modalBody.innerHTML = `
-        <div class="summary-banner summary-warn">正在執行 pip install，首次安裝 Whisper 或 PyTorch 時會需要比較久。</div>
+        <div class="summary-banner summary-warn">正在執行 pip install，首次安裝 Whisper / yt-dlp 時會需要一些時間。</div>
         <div class="terminal" id="install-terminal"></div>
       `;
 
@@ -1219,11 +1220,7 @@
       })
         .then(response => response.json().then(data => ({ ok: response.ok, data })))
         .then(({ ok, data }) => {
-          if (!ok || !data.install_id) {
-            throw new Error(data.error || "無法建立安裝工作。");
-          }
-
-          state.lastInstallId = data.install_id;
+          if (!ok || !data.install_id) throw new Error(data.error || "無法建立安裝工作。");
           pollInstallStatus(data.install_id, terminal, "套件安裝完成，請重新執行 start.bat。");
         })
         .catch(error => {
@@ -1234,7 +1231,7 @@
     function startCudaInstall(indexUrl) {
       modalTitle.textContent = "CUDA 版 PyTorch 安裝中";
       modalBody.innerHTML = `
-        <div class="summary-banner summary-warn">正在安裝 CUDA 版 PyTorch，下載量可能達 2~3 GB，請稍候。</div>
+        <div class="summary-banner summary-warn">正在安裝 CUDA 版 PyTorch，下載量可能較大，請稍候。</div>
         <div class="terminal" id="install-terminal"></div>
       `;
 
@@ -1248,11 +1245,7 @@
       })
         .then(response => response.json().then(data => ({ ok: response.ok, data })))
         .then(({ ok, data }) => {
-          if (!ok || !data.install_id) {
-            throw new Error(data.error || "無法建立 CUDA 安裝工作。");
-          }
-
-          state.lastInstallId = data.install_id;
+          if (!ok || !data.install_id) throw new Error(data.error || "無法建立 CUDA 安裝工作。");
           pollInstallStatus(data.install_id, terminal, "CUDA 版 PyTorch 安裝完成，請重新執行 start.bat。");
         })
         .catch(error => {
@@ -1261,19 +1254,13 @@
     }
 
     function pollInstallStatus(installId, terminal, successMessage) {
-      if (state.installPollTimer) {
-        clearInterval(state.installPollTimer);
-      }
-
+      if (state.installPollTimer) clearInterval(state.installPollTimer);
       let seen = 0;
       state.installPollTimer = setInterval(() => {
         fetch(`/install-status/${installId}`)
           .then(response => response.json().then(data => ({ ok: response.ok, data })))
           .then(({ ok, data }) => {
-            if (!ok) {
-              throw new Error(data.status || "無法取得安裝狀態。");
-            }
-
+            if (!ok) throw new Error(data.status || "無法取得安裝狀態。");
             const lines = data.lines || [];
             lines.slice(seen).forEach(line => {
               let cls = "";
@@ -1285,7 +1272,6 @@
             });
             seen = lines.length;
             terminal.scrollTop = terminal.scrollHeight;
-
             if (data.status === "done") {
               clearInterval(state.installPollTimer);
               state.installPollTimer = null;
@@ -1321,28 +1307,22 @@
 
         const currentDevice = deviceRes.device === "cuda" ? "GPU" : "CPU";
         const modelLoaded = deviceRes.model_loaded ? "已載入" : "尚未載入";
-        const cudaAvailable = cudaRes.cuda_usable ? "可用" : (cudaRes.cuda_available ? "偵測到，但目前 PyTorch 不相容" : "不可用");
+        const cudaAvailable = cudaRes.cuda_available ? "可用" : "不可用";
         const gpuName = deviceRes.gpu_name || cudaRes.gpu_name || "未偵測到";
         const torchVersion = cudaRes.torch_version || "未安裝";
-        const torchCuda = cudaRes.torch_cuda || "未安裝";
-        const cudaCapability = cudaRes.cuda_capability_label || "未知";
-        const cudaIssue = cudaRes.cuda_issue || "";
         const pythonVersion = cudaRes.python_version || "未知";
+        const cudaIssue = cudaRes.cuda_issue || "";
         const cudaInstallBlocker = cudaRes.cuda_install_blocker || "";
         const recommendedIndex = cudaRes.recommended_index || "https://download.pytorch.org/whl/cu128";
         const cudaInstallButton = cudaInstallBlocker
           ? `<button class="btn btn-primary" type="button" disabled>安裝 CUDA 版 PyTorch</button>`
           : `<button class="btn btn-primary" type="button" onclick='startCudaInstall(${JSON.stringify(recommendedIndex)})'>安裝 CUDA 版 PyTorch</button>`;
-        const cudaInstallNotice = cudaInstallBlocker || cudaIssue
-          ? `<div class="summary-banner summary-err">${escapeHtml(cudaInstallBlocker || cudaIssue)}</div>`
-          : "";
 
         modalBody.innerHTML = `
-          <div class="summary-banner ${deviceRes.device === "cuda" ? "summary-ok" : "summary-warn"}">
+          <div class="summary-banner ${deviceRes.device === "cuda" && !cudaIssue ? "summary-ok" : "summary-warn"}">
             目前運算裝置：${escapeHtml(currentDevice)}，模型狀態：${escapeHtml(modelLoaded)}。
           </div>
-          ${cudaInstallNotice}
-
+          ${cudaIssue || cudaInstallBlocker ? `<div class="summary-banner summary-err">${escapeHtml(cudaInstallBlocker || cudaIssue)}</div>` : ""}
           <div class="device-grid">
             <div class="device-card">
               <strong>目前裝置</strong>
@@ -1357,37 +1337,18 @@
               <span>${escapeHtml(gpuName)}</span>
             </div>
             <div class="device-card">
-              <strong>PyTorch 版本</strong>
-              <span>${escapeHtml(torchVersion)}</span>
-            </div>
-            <div class="device-card">
-              <strong>PyTorch CUDA</strong>
-              <span>${escapeHtml(torchCuda)}</span>
-            </div>
-            <div class="device-card">
-              <strong>顯卡架構</strong>
-              <span>${escapeHtml(cudaCapability)}</span>
-            </div>
-            <div class="device-card">
-              <strong>Python 版本</strong>
-              <span>${escapeHtml(pythonVersion)}</span>
-            </div>
-            <div class="device-card">
-              <strong>建議安裝索引</strong>
-              <span>${escapeHtml(recommendedIndex)}</span>
+              <strong>Python / PyTorch</strong>
+              <span>Python ${escapeHtml(pythonVersion)}<br>PyTorch ${escapeHtml(torchVersion)}</span>
             </div>
           </div>
-
           <div class="btn-row" style="margin-bottom:14px">
             <button class="btn btn-primary" type="button" onclick="switchDevice('cuda')">切換到 GPU</button>
             <button class="btn btn-soft" type="button" onclick="switchDevice('cpu')">切換到 CPU</button>
           </div>
-
           <div class="btn-row" style="margin-bottom:14px">
             <button class="btn btn-soft" type="button" onclick="unloadModel()">卸載模型</button>
             ${cudaInstallButton}
           </div>
-
           <div class="device-card">
             <strong>進一步資訊</strong>
             <span>nvcc：${escapeHtml(cudaRes.nvcc_version || "未偵測到")}<br>nvidia-smi：${escapeHtml(cudaRes.nvidia_smi || "未偵測到")}</span>
@@ -1406,9 +1367,7 @@
           body: JSON.stringify({ device: target })
         });
         const data = await response.json();
-        if (!response.ok || data.error) {
-          throw new Error(data.error || `HTTP ${response.status}`);
-        }
+        if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
         await openDevicePanel();
       } catch (error) {
         alert(`切換裝置失敗：${error.message}`);
@@ -1419,9 +1378,7 @@
       try {
         const response = await fetch("/unload-model", { method: "POST" });
         const data = await response.json();
-        if (!response.ok || data.error) {
-          throw new Error(data.error || `HTTP ${response.status}`);
-        }
+        if (!response.ok || data.error) throw new Error(data.error || `HTTP ${response.status}`);
         await openDevicePanel();
         alert(data.msg || "模型已卸載。");
       } catch (error) {
@@ -1458,19 +1415,39 @@
       startUpload(file);
     });
 
+    youtubeSubmit.addEventListener("click", startYoutubeUpload);
+    youtubeUrlInput.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        startYoutubeUpload();
+      }
+    });
+
     document.querySelectorAll(".seg-btn").forEach(button => {
       button.addEventListener("click", () => setSegMode(button.dataset.mode));
     });
 
-    document.getElementById("download-btn").addEventListener("click", () => {
+    document.getElementById("download-srt-btn").addEventListener("click", () => {
       if (!state.currentJobId) return;
-      window.location.href = `/download/${state.currentJobId}`;
+      window.location.href = `/download/${state.currentJobId}/srt`;
+    });
+
+    document.getElementById("download-txt-btn").addEventListener("click", () => {
+      if (!state.currentJobId) return;
+      window.location.href = `/download/${state.currentJobId}/txt`;
+    });
+
+    document.getElementById("download-seo-btn").addEventListener("click", () => {
+      if (!state.currentJobId) return;
+      window.location.href = `/download/${state.currentJobId}/seo`;
     });
 
     document.getElementById("reset-btn").addEventListener("click", resetAll);
     document.getElementById("retry-btn").addEventListener("click", () => {
       if (state.file) {
         startUpload(state.file);
+      } else if (youtubeUrlInput.value.trim()) {
+        startYoutubeUpload();
       } else {
         resetAll();
       }
@@ -1481,7 +1458,7 @@
         try {
           await fetch(`/cancel/${state.currentJobId}`, { method: "POST" });
         } catch (_) {
-          // 中文註解：取消失敗時不用阻止前端重設，直接清掉畫面即可。
+          // 取消失敗時直接清掉前端狀態即可。
         }
       }
       resetAll();

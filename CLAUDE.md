@@ -2,26 +2,30 @@
 
 ## 專案身份
 
-這個資料夾是 **Whisper 字幕神器**。
+這個資料夾是 **Whisper 字幕神器 V2**。
 
-## 專案目標
+不是抽獎系統。
 
-建立一個在 Windows 本機執行的 Whisper 字幕工具，讓使用者可以：
+## 第二版目標
+
+讓使用者可以：
 
 - 上傳音訊或影片
-- 等待 Whisper 轉錄
-- 預覽字幕結果
-- 下載 `.srt`
-- 檢查環境與安裝缺少套件
-- 查看並切換 CPU / GPU 執行模式
+- 或直接貼上 YouTube 影片網址
+- 用 Whisper 進行轉錄
+- 下載：
+  - SRT
+  - 純文字轉錄稿
+  - `SEO.txt`
 
 ## 目前狀態
 
-- `app.py` 已整理為可用的 Flask 後端
-- `index.html` 已整理為單頁操作介面
-- `README.md` 已改為 Whisper 說明
-- `memory.md` 已建立，用來壓縮專案記憶
-- `SKILL.md` 已建立，用來快速續接
+- `app.py` 已支援第二版功能
+- `index.html` 已支援雙輸入與三種輸出
+- `requirements.txt` 已加入 `yt-dlp`
+- `README.md`、`memory.md`、`SKILL.md` 已同步
+- 第二版 smoke test 已通過
+- 第二版 YouTube 端到端測試已通過
 
 ## 接手順序
 
@@ -30,36 +34,25 @@
 3. 若是修功能：
    - 前端看 `index.html`
    - 後端看 `app.py`
-4. 若是驗證整體流程，先跑 `start.bat`
-
-## 實作偏好
-
-- 一律使用繁體中文
-- 修改要以實際執行流程為準
-- 優先保留目前 Whisper 架構，不要大改方向
-- 若只是修 bug，先做最小修改
+4. 若是測完整流程，先跑 `start.bat`
 
 ## 常見檢查點
 
-### 上傳失敗
+### YouTube 網址失敗
 
-- 檢查 `index.html` 的 `fetch("/upload")`
-- 檢查 `app.py` 的副檔名限制與儲存路徑
+- 看 `yt-dlp` 是否安裝
+- 看網路是否正常
+- 看 ffmpeg 是否可用
 
-### 一直轉圈沒有結果
+### SRT / TXT / SEO.txt 有問題
 
-- 檢查 `/status/<job_id>` 的輪詢
-- 檢查 Whisper 模型是否成功載入
-- 檢查 ffmpeg 是否可用
+- 看 `build_job_outputs`
+- 看 `segments_to_transcript_text`
+- 看 `build_seo_text`
 
-### 下載失敗
+### GPU 沒開起來
 
-- 檢查 `/download/<job_id>`
-- 檢查工作狀態是否真的到 `done`
-
-### GPU 無法使用
-
-- 檢查 `/device-info`
-- 檢查 `/cuda-diagnose`
-- 必要時使用 CUDA 安裝流程
+- 看 `/device-info`
+- 看 `/cuda-diagnose`
+- 先確認能不能正常轉錄，再判斷是否一定要修 GPU
 

@@ -2,86 +2,106 @@
 
 ## 專案定位
 
-- 專案名稱：Whisper 字幕神器
-- 類型：本機執行的 Whisper 字幕轉錄工具
+- 專案名稱：Whisper 字幕神器 V2
+- 類型：本機 Whisper 字幕轉錄工具
 - 架構：`Flask + 單頁 index.html`
-- 主要用途：上傳音訊或影片，交給 Whisper 轉錄，下載 `.srt`
+- 平台：Windows 為主
 
-## 目前可用功能
+## 第二版已完成功能
 
-- 支援上傳格式：`mp3`、`mp4`、`wav`、`m4a`、`ogg`、`webm`
-- 前端可拖拉上傳或點擊選檔
-- 三種字幕切割模式：`fine`、`standard`、`coarse`
-- 後端提供：
-  - `/upload`
-  - `/status/<job_id>`
-  - `/download/<job_id>`
-  - `/cancel/<job_id>`
-  - `/env-check`
-  - `/install`
-  - `/install-cuda-torch`
-  - `/device-info`
-  - `/set-device`
-  - `/unload-model`
-  - `/cuda-diagnose`
-- 下載字幕格式為 `UTF-8 with BOM`，方便 Windows 字幕軟體開啟
-- Windows 建議使用 Python 3.11 或 3.12；避免 Python 3.13 / 3.14 找不到 PyTorch CUDA wheel
-- RTX 50 系列 / Blackwell (`sm_120`) 需要 PyTorch CUDA 12.8 (`cu128`)，不能使用舊的 `cu121`
+- 支援本機上傳：
+  - `mp3`
+  - `mp4`
+  - `wav`
+  - `m4a`
+  - `ogg`
+  - `webm`
+- 支援直接輸入 YouTube 影片網址
+- 轉錄完成後可輸出：
+  - `SRT`
+  - `純文字轉錄稿 TXT`
+  - `SEO.txt`
 
-## 目前檔案重點
+## SEO.txt 內容
+
+- 建議標題 3 個
+- 內容摘要
+- 吸引人的鉤子
+- SRT 章節目錄
+- 關鍵字與標籤建議
+
+## 主要檔案
 
 - `app.py`
-  - Flask 主程式
-  - Whisper lazy loading
-  - ffmpeg 自動掃描
-  - GPU / CPU 裝置切換
-  - 背景執行轉錄與安裝工作
+  - 上傳與 YouTube 下載
+  - Whisper 轉錄
+  - SRT / TXT / SEO.txt 生成
+  - 環境檢查
+  - 安裝與 CUDA 裝置管理
 - `index.html`
-  - 單頁前端
-  - 上傳、進度、結果預覽、下載
-  - 環境檢查 / 安裝協助 / 裝置資訊 Modal
-- `start.bat`
-  - Windows 啟動入口
-  - 會優先找 Python 3.12 / 3.11 / 3.10 / 3.9，再啟動 `app.py`
-- `README.md`
-  - 已改成目前 Whisper 專案的說明
+  - 檔案上傳介面
+  - YouTube URL 輸入
+  - 結果預覽
+  - 三種下載按鈕
+- `requirements.txt`
+  - `flask`
+  - `openai-whisper`
+  - `yt-dlp`
 
-## 這次已完成事項
+## 重要規則
 
-- 已確認本專案應忽略抽獎系統需求，專注 Whisper
-- 已重建 `index.html`
-- 已重整 `app.py`
-- 已更新 `README.md`
-- 已用內建 Python 驗證：
-  - `py_compile app.py` 通過
-  - `import app` 通過
-- 啟動偵測結果：
-  - 可找到 CapCut 內建 `ffmpeg`
-  - 有偵測到 `NVIDIA GeForce RTX 3060`
-- 針對另一台電腦 Python 3.14 安裝 CUDA PyTorch 失敗：
-  - `/install-cuda-torch` 改成只安裝 Whisper 需要的 `torch`
-  - 偵測到不相容 Python 時，前端會提示改用 Python 3.11 / 3.12
-  - `start.bat` 不再直接拿 Python 3.14 執行安裝流程
-- 針對 RTX 5060 Ti 顯示 `sm_120 is not compatible`：
-  - CUDA 偵測改為實際建立 CUDA tensor，不只看 `torch.cuda.is_available()`
-  - `start.bat` 偵測 RTX 50 系列時改裝 `https://download.pytorch.org/whl/cu128`
-  - `/cuda-diagnose` 會回傳顯卡架構、PyTorch CUDA runtime、推薦索引與相容性問題
-- 針對瀏覽器仍打到舊版 Flask：
-  - 已停止舊的 `python app.py` 佔用程序
-  - `start.bat` 啟動時會檢查 localhost:5000，若是舊 `app.py` 會先停止
-  - `/` 回應加入 `Cache-Control: no-store`，避免前端 HTML 快取舊邏輯
+- 一律使用繁體中文
+- 這個專案是 Whisper，不是抽獎系統
+- 若看到舊的抽獎描述，全部忽略
+- 修改前先確認前端 fetch 與 Flask 路由是否一致
 
-## 重要偏好
+## 這次版本更新重點
 
-- 之後一律使用中文回覆使用者
-- 專案主題是 Whisper，不要再切回抽獎系統
+- 第二版新增 YouTube 影片網址輸入
+- 第二版新增純文字轉錄稿輸出
+- 第二版新增 `SEO.txt`
+- `README.md`、`memory.md`、`SKILL.md` 已同步更新
+- 套件已補安裝：
+  - `openai-whisper`
+  - `yt-dlp`
+  - `flask`
 
-## 下次若要續做
+## 目前測試狀態
 
-- 先跑 `start.bat` 做實機測試
-- 優先檢查：
-  - 上傳是否成功
-  - 轉錄輪詢是否正常
-  - SRT 下載是否正常
-  - 裝置切換與 CUDA 安裝面板是否正常
-- 若使用者回報問題，先看 `app.py` API 與 `index.html` fetch 對應是否一致
+- `app.py` 語法檢查已通過
+- Smoke test 已通過：
+  - `build_job_outputs`
+  - `/env-check`
+  - `/download/<job_id>/srt`
+  - `/download/<job_id>/txt`
+  - `/download/<job_id>/seo`
+  - 無效 YouTube 網址驗證
+- YouTube 實際下載測試已通過：
+  - 測試影片：`Me at the zoo`
+- 端到端測試已通過：
+  - YouTube 下載
+  - Whisper 轉錄
+  - SRT 產出
+  - TXT 產出
+  - `SEO.txt` 產出
+
+## 這次實測觀察
+
+- 目前 bundled Python 執行時偵測為 CPU 模式
+- `Whisper medium` 可正常載入並完成轉錄
+- `ffmpeg` 目前使用 CapCut 內建版本
+
+## GitHub
+
+- GitHub 帳號：`vincentchiou`
+- 倉庫：`whisper`
+- 網址：
+  - <https://github.com/vincentchiou/whisper>
+
+## 下次續做時先看
+
+1. `memory.md`
+2. `SKILL.md`
+3. `README.md`
+4. `app.py`
+5. `index.html`
