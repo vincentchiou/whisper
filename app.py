@@ -335,6 +335,69 @@ def segments_to_srt(segments: list[dict[str, Any]], mode: str = "standard") -> s
     return "\n".join(blocks)
 
 
+def clean_spacing(text: str) -> str:
+    text = re.sub(r"\s+", " ", str(text or "")).strip()
+    text = re.sub(r"\s+([，。！？；：,.!?;:])", r"\1", text)
+    return text
+
+
+def clean_transcript_text(text: str) -> str:
+    cleaned = normalize_text(text)
+    cleaned = clean_spacing(cleaned)
+
+    glossary_patterns = [
+        (r"\bopen[\s.-]*ai\b", "OpenAI"),
+        (r"\bchat[\s.-]*gpt\b", "ChatGPT"),
+        (r"\bwhisper\b", "Whisper"),
+        (r"\byou[\s.-]*tube\b", "YouTube"),
+        (r"\byt[\s.-]*dlp\b", "yt-dlp"),
+        (r"\bseo\b", "SEO"),
+        (r"\bgpu\b", "GPU"),
+        (r"\bcuda\b", "CUDA"),
+        (r"\bnvidia\b", "NVIDIA"),
+        (r"\bpy[\s.-]*torch\b", "PyTorch"),
+        (r"\bapi\b", "API"),
+        (r"\bllm\b", "LLM"),
+        (r"\ba[\s.-]*i\b", "AI"),
+    ]
+
+    for pattern, replacement in glossary_patterns:
+        cleaned = re.sub(pattern, replacement, cleaned, flags=re.IGNORECASE)
+
+    replacements = {
+        "秋文盛": "邱文盛",
+        "邱文勝": "邱文盛",
+        "邱文圣": "邱文盛",
+        "邱文聖": "邱文盛",
+        "丘文盛": "邱文盛",
+        "秋文勝": "邱文盛",
+        "秋文圣": "邱文盛",
+        "秋文聖": "邱文盛",
+    }
+
+    for wrong, correct in replacements.items():
+        pattern = re.compile(re.escape(wrong), re.IGNORECASE)
+        cleaned = pattern.sub(correct, cleaned)
+
+    cleaned = re.sub(r"(嗯|呃|這個|那個)(\s+\1){1,}", r"\1", cleaned)
+    cleaned = re.sub(r"([，。！？,.!?])\1+", r"\1", cleaned)
+    cleaned = re.sub(r"\b([A-Z])\s+([A-Z])\b", r"\1\2", cleaned)
+    return cleaned.strip()
+
+
+def clean_segments(segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    cleaned_segments: list[dict[str, Any]] = []
+    for segment in segments:
+        cleaned_segments.append(
+            {
+                "start": float(segment["start"]),
+                "end": float(segment["end"]),
+                "text": clean_transcript_text(segment.get("text", "")),
+            }
+        )
+    return cleaned_segments
+
+
 def sentence_split(text: str) -> list[str]:
     parts = re.split(r"(?<=[。！？!?])\s+|[\r\n]+", text)
     return [part.strip() for part in parts if part and part.strip()]
@@ -366,13 +429,13 @@ def segments_to_transcript_text(segments: list[dict[str, Any]], mode: str = "sta
         )
 
         if should_break:
-            paragraphs.append(" ".join(current_lines).strip())
+            paragraphs.append(clean_transcript_text(" ".join(current_lines).strip()))
             current_lines = []
             current_chars = 0
             paragraph_start = float(segment["end"])
 
     if current_lines:
-        paragraphs.append(" ".join(current_lines).strip())
+        paragraphs.append(clean_transcript_text(" ".join(current_lines).strip()))
 
     return "\n\n".join(paragraphs)
 
@@ -435,10 +498,15 @@ def extract_candidate_phrases(text: str) -> list[str]:
     chinese_chunks = re.findall(r"[\u4e00-\u9fff]{2,12}", normalized)
 
     candidates: list[str] = []
-    stop_words = {"我們", "你們", "這個", "那個", "以及", "因為", "如果", "所以", "可以", "影片", "內容", "今天"}
+    stop_words = {
+        "我們", "你們", "這個", "那個", "以及", "因為", "如果", "所以", "可以", "影片", "內容", "今天",
+        "the", "and", "that", "this", "with", "from", "have", "your", "just", "really",
+        "about", "there", "here", "what", "when", "then", "into", "they", "them", "guys",
+        "alright", "okay", "cool", "pretty", "stuff", "thing",
+    }
     for chunk in ascii_words + chinese_chunks:
-        chunk = chunk.strip()
-        if len(chunk) < 2 or chunk in stop_words:
+        chunk = chunk.strip().strip(".,!?;:()[]{}\"'")
+        if len(chunk) < 2 or chunk.lower() in stop_words or chunk in stop_words:
             continue
         candidates.append(chunk)
     return candidates
@@ -465,6 +533,33 @@ def top_keywords(text: str, seed_title: str = "", limit: int = 10) -> list[str]:
     return keywords
 
 
+def summarize_chapter_text(text: str, fallback: str) -> str:
+    cleaned = clean_transcript_text(text)
+    keywords = top_keywords(cleaned, "", limit=5)
+    chinese_keywords = [item for item in keywords if re.search(r"[\u4e00-\u9fff]", item)]
+    english_keywords = [item for item in keywords if re.search(r"[A-Za-z]", item)]
+
+    if len(chinese_keywords) >= 3:
+        candidate = f"聚焦{chinese_keywords[0]}、{chinese_keywords[1]}與{chinese_keywords[2]}"
+    elif len(chinese_keywords) == 2:
+        candidate = f"說明{chinese_keywords[0]}與{chinese_keywords[1]}"
+    elif len(chinese_keywords) == 1 and len(english_keywords) >= 1:
+        candidate = f"整理{chinese_keywords[0]}與{english_keywords[0]}"
+    elif len(english_keywords) >= 3:
+        candidate = "重點涵蓋" + "、".join(english_keywords[:3])
+    elif len(english_keywords) == 2:
+        candidate = "說明" + "與".join(english_keywords[:2])
+    elif keywords:
+        candidate = "重點：" + "、".join(keywords[:3])
+    else:
+        candidate = fallback
+
+    candidate = candidate.strip("，。！？,.!? ")
+    if len(candidate) > 32:
+        candidate = candidate[:32].rstrip("，。！？,.!? ") + "…"
+    return candidate or fallback
+
+
 def build_chapters(segments: list[dict[str, Any]], seed_title: str) -> list[tuple[str, str]]:
     if not segments:
         return [("00:00", "影片開始")]
@@ -484,8 +579,7 @@ def build_chapters(segments: list[dict[str, Any]], seed_title: str) -> list[tupl
             continue
 
         chunk_text = " ".join(str(item["text"]).strip() for item in chunk if str(item["text"]).strip())
-        candidates = top_keywords(chunk_text, seed_title, limit=4)
-        title = candidates[0] if candidates else f"重點段落 {len(chapters) + 1}"
+        title = summarize_chapter_text(chunk_text, f"重點段落 {len(chapters) + 1}")
         chapters.append((format_hms(start), title))
 
     if not chapters or chapters[0][0] != "00:00":
@@ -494,8 +588,8 @@ def build_chapters(segments: list[dict[str, Any]], seed_title: str) -> list[tupl
     while len(chapters) < 3 and len(chapters) < len(segments):
         candidate_index = min(len(segments) - 1, len(chapters) * max(1, len(segments) // 3))
         start = float(segments[candidate_index]["start"])
-        title = top_keywords(str(segments[candidate_index]["text"]), seed_title, limit=2)
-        chapters.append((format_hms(start), title[0] if title else f"章節 {len(chapters) + 1}"))
+        title = summarize_chapter_text(str(segments[candidate_index]["text"]), f"章節 {len(chapters) + 1}")
+        chapters.append((format_hms(start), title))
 
     unique: list[tuple[str, str]] = []
     seen_times: set[str] = set()
@@ -521,6 +615,15 @@ def build_summary_and_hook(transcript_text: str) -> tuple[str, str]:
     paragraphs = [item.strip() for item in transcript_text.split("\n\n") if item.strip()]
     if not paragraphs:
         return "這支影片主要分享實際內容與重點觀點，適合整理成可搜尋、可快速理解的 YouTube 說明。", "先看前兩句，就能快速知道這支影片最值得注意的重點。"
+
+    has_chinese = bool(re.search(r"[\u4e00-\u9fff]", transcript_text))
+    keywords = top_keywords(transcript_text, "", limit=5)
+
+    if not has_chinese and keywords:
+        keyword_text = "、".join(keywords[:3])
+        summary = f"這段內容主要圍繞 {keyword_text} 等重點展開，適合整理成容易搜尋與理解的影片說明。"
+        hook = f"影片一開始就帶出 {keyword_text} 等核心內容，適合作為吸引觀眾繼續看下去的開場鉤子。"
+        return summary, hook
 
     summary_sentences: list[str] = []
     for paragraph in paragraphs[:2]:
@@ -573,9 +676,6 @@ def build_seo_text(
             summary,
             "",
             hook,
-            "",
-            "章節導覽：",
-            *[f"{timestamp} {title}" for timestamp, title in chapters],
         ]
     ).strip()
 
@@ -593,7 +693,7 @@ def build_seo_text(
         "三、建議說明區文字",
         description_block,
         "",
-        "四、SRT 章節目錄",
+        "四、章節目錄",
         *[f"{timestamp} {title}" for timestamp, title in chapters],
         "",
         "五、內容關鍵字",
@@ -601,17 +701,121 @@ def build_seo_text(
         "",
         "六、建議標籤 / Hashtags",
         " ".join(f"#{item}" for item in hashtag_keywords) if hashtag_keywords else "#Whisper #字幕 #YouTube",
-        "",
-        "七、補充提醒",
-        "- 標題、縮圖與描述比 tags 更重要；tags 主要用來補強常見拼錯字或別名。",
-        "- 描述前幾行要先寫出影片主題與觀眾能得到的價值。",
-        "- YouTube 章節建議從 00:00 開始，至少 3 個時間點，且每段至少 10 秒。",
     ]
 
     if source_url:
         lines.extend(["", f"原始影片網址：{source_url}"])
 
     return "\n".join(lines).strip() + "\n"
+
+
+def probe_media_duration(file_path: str) -> float | None:
+    ffprobe = shutil.which("ffprobe")
+    if not ffprobe:
+        return None
+    try:
+        result = subprocess.run(
+            [
+                ffprobe,
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                file_path,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=True,
+        )
+        return float(result.stdout.strip())
+    except Exception:
+        return None
+
+
+def split_media_for_transcription(file_path: str, segment_seconds: int = 1200) -> tuple[list[tuple[str, float]], Path]:
+    temp_dir = UPLOAD_DIR / f"{Path(file_path).stem}_chunks"
+    temp_dir.mkdir(exist_ok=True)
+    output_pattern = str(temp_dir / "chunk_%03d.wav")
+
+    command = [
+        shutil.which("ffmpeg") or "ffmpeg",
+        "-y",
+        "-i",
+        file_path,
+        "-vn",
+        "-ac",
+        "1",
+        "-ar",
+        "16000",
+        "-f",
+        "segment",
+        "-segment_time",
+        str(segment_seconds),
+        "-reset_timestamps",
+        "1",
+        output_pattern,
+    ]
+
+    subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=True,
+    )
+
+    chunk_files = sorted(temp_dir.glob("chunk_*.wav"))
+    if not chunk_files:
+        raise RuntimeError("音訊分段失敗，找不到可供轉錄的片段。")
+
+    chunks: list[tuple[str, float]] = []
+    offset = 0.0
+    for chunk_path in chunk_files:
+        chunks.append((str(chunk_path), offset))
+        duration = probe_media_duration(str(chunk_path))
+        offset += duration if duration else float(segment_seconds)
+    return chunks, temp_dir
+
+
+def transcribe_media_in_chunks(model: Any, file_path: str) -> list[dict[str, Any]]:
+    chunks, temp_dir = split_media_for_transcription(file_path)
+    combined_segments: list[dict[str, Any]] = []
+
+    try:
+        for chunk_path, offset in chunks:
+            result = model.transcribe(
+                chunk_path,
+                language=None,
+                task="transcribe",
+                fp16=USE_FP16,
+                verbose=False,
+            )
+            for segment in result.get("segments", []):
+                combined_segments.append(
+                    {
+                        "start": float(segment["start"]) + offset,
+                        "end": float(segment["end"]) + offset,
+                        "text": segment.get("text", ""),
+                    }
+                )
+    finally:
+        for chunk_path, _offset in chunks:
+            try:
+                if os.path.exists(chunk_path):
+                    os.remove(chunk_path)
+            except OSError:
+                pass
+        try:
+            temp_dir.rmdir()
+        except OSError:
+            pass
 
 
 def append_install_line(install_id: str, line: str) -> None:
@@ -725,10 +929,11 @@ def build_job_outputs(
     segments: list[dict[str, Any]],
     seg_mode: str,
 ) -> tuple[str, str, str]:
-    srt_content = segments_to_srt(segments, seg_mode)
-    transcript_text = segments_to_transcript_text(segments, seg_mode)
+    cleaned_segments = clean_segments(segments)
+    srt_content = segments_to_srt(cleaned_segments, seg_mode)
+    transcript_text = segments_to_transcript_text(cleaned_segments, seg_mode)
     base_title = original_title or Path(filename).stem
-    seo_text = build_seo_text(transcript_text, merge_segments(segments, seg_mode), base_title, source_url)
+    seo_text = build_seo_text(transcript_text, merge_segments(cleaned_segments, seg_mode), base_title, source_url)
     return srt_content, transcript_text, seo_text
 
 
@@ -745,16 +950,19 @@ def run_whisper(job_id: str, file_path: str, seg_mode: str) -> None:
 
         model = get_whisper_model()
         print(f"[Job {job_id[:8]}] 開始轉錄：{file_path}")
-
-        result = model.transcribe(
-            file_path,
-            language=None,
-            task="transcribe",
-            fp16=USE_FP16,
-            verbose=False,
-        )
-
-        segments = result.get("segments", [])
+        duration = probe_media_duration(file_path) or 0.0
+        if duration >= 1200:
+            print(f"[Job {job_id[:8]}] 偵測到長影音，改用分段轉錄流程（約 {int(duration)} 秒）。")
+            segments = transcribe_media_in_chunks(model, file_path)
+        else:
+            result = model.transcribe(
+                file_path,
+                language=None,
+                task="transcribe",
+                fp16=USE_FP16,
+                verbose=False,
+            )
+            segments = result.get("segments", [])
         srt_content, transcript_text, seo_text = build_job_outputs(
             filename=filename,
             source_type=source_type,
