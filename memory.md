@@ -106,8 +106,6 @@
 
 ## GitHub
 
-- GitHub 帳號：`vincentchiou`
-- 倉庫：`whisper`
 - 網址：
   - <https://github.com/vincentchiou/whisper>
 
