@@ -2,9 +2,17 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.venv/
 
 uploads/*
 !uploads/.gitkeep
 
 .DS_Store
 Thumbs.db
+
+重要指令.txt
+重點提醒.md
+分享素材/
+推廣進度追蹤.md
+Release說明_可直接複製.txt
+Release發佈說明_v1.0.0.md
