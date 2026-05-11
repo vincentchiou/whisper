@@ -21,7 +21,6 @@
    - `AGENTS.md`
    - `CLAUDE.md`
 4. 以目前可執行的 `app.py`、`index.html`、`start.bat` 為主
-5. 不要被舊的抽獎需求誤導
 
 ---
 
@@ -38,8 +37,7 @@
 - 重整 `app.py`
 - 重建 `index.html`
 - 更新 `README.md`
-- 專案改回以 Whisper 為核心，不再混入抽獎內容
-
+  
 ### 3. 補齊續接用文件
 
 - 建立 `memory.md`
@@ -128,7 +126,6 @@
 
 - 一律使用繁體中文
 - 這是 Whisper 專案
-- 不要再改成抽獎系統
 - 優先維持目前架構
 - 修改前先確認前後端 API 是否一致
 - 若對話變長，要回寫 `memory.md`
