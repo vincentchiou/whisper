@@ -1,113 +1,151 @@
-# 專案壓縮記憶
+# Whisper 專案壓縮記憶
 
 ## 專案定位
 
 - 專案名稱：Whisper 字幕神器 V2
-- 類型：本機 Whisper 字幕轉錄工具
-- 架構：`Flask + 單頁 index.html`
+- 主題：本機字幕轉錄工具，不是抽獎系統
+- 技術：`Flask + 單頁 HTML/CSS/JS`
 - 平台：Windows 為主
+- 語言：所有介面、文件、輸出都使用繁體中文
 
-## 第二版功能
+## 目前功能
 
-- 支援本機上傳：
-  - `mp3`
-  - `mp4`
-  - `wav`
-  - `m4a`
-  - `ogg`
-  - `webm`
+- 支援本機音訊 / 影片上傳
 - 支援 YouTube 影片網址輸入
-- 轉錄完成後可輸出：
+- Whisper 字幕轉錄
+- 字幕切割模式：`fine`、`standard`、`coarse`
+- 下載：
   - `SRT`
-  - `純文字轉錄稿 TXT`
+  - `TXT`
   - `SEO.txt`
-
-## SEO.txt 規則
-
-- 包含：
-  - 建議標題 3 個
-  - 內容摘要
-  - 吸引人的鉤子
-  - 章節目錄
-  - 關鍵字與標籤建議
-- 只保留一份章節目錄
-- 不要再出現「章節導覽」
-- 不要輸出「補充提醒」
-- 章節目錄中的每段說明，要由該段的重要關鍵字組合成短句說明
-- 章節說明不能只有單字，也不能太空泛
-
-## 字幕與轉錄稿規則
-
-- 使用者姓名固定校正為：`邱文盛`
-- AI / 科技關鍵字優先校正：
-  - OpenAI
-  - ChatGPT
-  - Whisper
-  - YouTube
-  - SEO
-  - GPU
-  - CUDA
-  - NVIDIA
+  - `進階SEO.txt`
+- 環境檢查：
+  - Python
+  - Flask
+  - openai-whisper
+  - yt-dlp
+  - requests
+  - silero-vad
   - PyTorch
-  - API
-  - LLM
-- SRT 裡面的英文關鍵術語要盡量貼近 AI 領域正確拼法
+  - ffmpeg
+- GPU / CUDA 偵測與切換
 
-## 長影音規則
+## 進階 SEO 現況
 
-- 若影音很長，必須先分段轉錄，再整合時間軸與輸出
-- 不能因為影音太長就省略內容
-- 不能中斷後只輸出前半段
+- `SEO.txt` 是規則式輸出，不需要外部模型
+- `進階SEO.txt` 才會呼叫本地或雲端模型
+- 支援服務：
+  - `Ollama`
+  - `LM Studio`
+  - `Groq`
+  - `Mistral`
+  - `Google AI Studio`
+  - `Google Gemini API`
+  - `OpenAI`
+- 只有在「開始這次轉錄之前」已連線成功並選好模型，才會生成 `進階SEO.txt`
+- API Key 只保留在瀏覽器工作階段，不寫入專案檔案
+
+## 進階 SEO 固定規則
+
+- 固定四段：
+  - `一、建議標題 3 個`
+  - `二、內容摘要`
+  - `三、關鍵字與標籤`
+  - `四、章節目錄`
+- `內容摘要`
+  - 先給約 300 字的摘要段落
+  - 再列核心重點條列
+  - 不可出現「第一點 / 第二點 / 第三點」
+- `關鍵字與標籤`
+  - 只輸出一行 hashtags
+  - 格式固定為 `#關鍵字,#關鍵字,...`
+- `章節目錄`
+  - 直接說明該段重點
+  - 每段約 1 到 2 句
+  - 不可出現「這段在說明什麼」這類模板語
+- 不可輸出：
+  - `補充提醒`
+  - `第五段`
+  - `第六段`
+  - 免責聲明
+  - 多餘寒暄
+
+## 長文本與超時修正
+
+- 進階 SEO 已改成長文本自動分段處理
+- 流程：
+  1. 先把長逐字稿切段
+  2. 分段整理摘要 / 重點 / 關鍵字 / 章節
+  3. 再整合成最後的 `進階SEO.txt`
+- 目的：
+  - 降低 `LM Studio` / 本地模型 read timeout
+  - 避免長文一次丟進模型失敗
+- 已補上品質檢查與必要時重試
+
+## Silero VAD
+
+- 專案已接入 `silero-vad`
+- 短影音：
+  - Whisper 完成後再用 VAD 語音區間過濾異常字幕片段
+- 長影音：
+  - 分段轉錄前先檢查是否有正常人聲
+  - 無語音 chunk 直接略過
+  - 不會因尾段空白就讓整體任務失敗
+- 若 VAD 偵測失敗，安全退回一般 Whisper 流程
+
+## 檔名規則
+
+- 所有下載檔案都改用關鍵詞短檔名
+- 限制在 20 字以內
+- 格式：
+  - `關鍵詞字幕.srt`
+  - `關鍵詞逐字稿.txt`
+  - `關鍵詞SEO.txt`
+  - `關鍵詞進階SEO.txt`
+
+## 固定偏好
+
+- 使用者姓名固定校正為 `邱文盛`
+- AI / 技術英文詞彙要優先校正：
+  - `OpenAI`
+  - `ChatGPT`
+  - `Whisper`
+  - `YouTube`
+  - `SEO`
+  - `GPU`
+  - `CUDA`
+  - `NVIDIA`
+  - `PyTorch`
+  - `API`
+  - `LLM`
+- 所有對外輸出一律繁體中文
+
+## 發布與安全規則
+
+- 發布 GitHub / Release 前，必須掃描：
+  - `*.md`
+  - `*.txt`
+  - `*.py`
+  - `*.bat`
+  - `*.html`
+- 不可包含：
+  - API key
+  - token
+  - secret
+  - password
+  - client secret
+  - Bearer token
+- 一般說明文字裡提到 `token` 不算機密，但仍要人工判斷
 
 ## 主要檔案
 
 - `app.py`
-  - 上傳與 YouTube 下載
-  - Whisper 轉錄
-  - SRT / TXT / SEO.txt 生成
-  - 字幕文字清理
-  - 長影音分段轉錄
-  - 環境檢查
-  - 安裝與 CUDA 裝置管理
 - `index.html`
-  - 檔案上傳介面
-  - YouTube URL 輸入
-  - 結果預覽
-  - 三種下載按鈕
+- `start.bat`
 - `requirements.txt`
-  - `flask`
-  - `openai-whisper`
-  - `yt-dlp`
-
-## 已完成測試
-
-- `app.py` 語法檢查通過
-- smoke test 通過：
-  - `build_job_outputs`
-  - `/env-check`
-  - `/download/<job_id>/srt`
-  - `/download/<job_id>/txt`
-  - `/download/<job_id>/seo`
-  - 無效 YouTube 網址驗證
-- YouTube 實際下載測試通過
-- YouTube → Whisper → 三種輸出端到端測試通過
-- 新規則驗證通過：
-  - `邱文盛` 人名校正
-  - AI 關鍵字校正
-  - `SEO.txt` 去除重複章節區塊
-  - `SEO.txt` 去除補充提醒
-  - 長影音分段轉錄觸發
-
-## 目前觀察
-
-- 目前機器可用 CapCut 內建 `ffmpeg`
-- 有時 bundled Python 會跑 CPU，有時可偵測到 GPU
-- `Whisper medium` 可正常載入並完成轉錄
-
-## GitHub
-
-- 網址：
-  - <https://github.com/vincentchiou/whisper>
+- `README.md`
+- `memory.md`
+- `SKILL.md`
 
 ## 接手順序
 
@@ -116,3 +154,7 @@
 3. `README.md`
 4. `app.py`
 5. `index.html`
+
+## GitHub
+
+- Repo：<https://github.com/vincentchiou/whisper>

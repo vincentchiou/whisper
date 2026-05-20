@@ -255,6 +255,25 @@
       flex-wrap: wrap;
     }
 
+    .field-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .field-stack label {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #6a537b;
+    }
+
+    .ai-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
     .text-input {
       flex: 1;
       min-width: 220px;
@@ -270,6 +289,54 @@
       outline: none;
       border-color: rgba(255, 108, 157, 0.72);
       box-shadow: 0 0 0 4px rgba(255, 108, 157, 0.12);
+    }
+
+    .select-input {
+      appearance: none;
+      cursor: pointer;
+    }
+
+    .helper-text {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.66);
+      border: 1px dashed rgba(194, 170, 229, 0.45);
+      color: #775f8c;
+      font-size: 0.82rem;
+      line-height: 1.65;
+    }
+
+    .connection-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 0 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.8);
+      border: 1px solid rgba(194, 170, 229, 0.45);
+      color: #775f8c;
+      font-size: 0.84rem;
+      font-weight: 800;
+    }
+
+    .connection-ok {
+      background: rgba(207, 250, 228, 0.9);
+      border-color: rgba(84, 172, 132, 0.35);
+      color: #246b4b;
+    }
+
+    .connection-warn {
+      background: rgba(255, 246, 206, 0.9);
+      border-color: rgba(219, 174, 59, 0.35);
+      color: #8c6320;
+    }
+
+    .connection-err {
+      background: rgba(255, 226, 226, 0.94);
+      border-color: rgba(214, 96, 96, 0.35);
+      color: #9d3434;
     }
 
     .filename {
@@ -713,7 +780,8 @@
       .card-body { padding: 18px; }
       .mode-grid,
       .stats-card,
-      .device-grid { grid-template-columns: 1fr; }
+      .device-grid,
+      .ai-grid { grid-template-columns: 1fr; }
       .modal-overlay {
         padding: 10px;
         align-items: flex-end;
@@ -725,11 +793,12 @@
   <div class="page">
     <section class="hero">
       <h1>🎵 Whisper 字幕神器 V2</h1>
-      <p>現在除了上傳音訊或影片，也可以直接輸入 YouTube 影片網址。轉錄完成後可同時下載 SRT、純文字轉錄稿，以及依目前 YouTube 官方公開建議整理的 SEO.txt。</p>
+      <p>現在除了上傳音訊或影片，也可以直接輸入 YouTube 影片網址。轉錄完成後可下載 SRT、純文字轉錄稿、基礎 SEO.txt；若先連上本地或雲端模型服務，還能額外產生整理更完整的進階SEO.txt。</p>
       <div class="badge-row">
         <div class="badge">支援 YouTube 網址</div>
         <div class="badge">純文字轉錄稿</div>
         <div class="badge">SEO.txt</div>
+        <div class="badge">進階SEO.txt</div>
         <div class="badge">本機 Whisper</div>
         <div class="badge">可用 CUDA 加速</div>
       </div>
@@ -768,6 +837,43 @@
                 <input class="text-input" id="youtube-url" type="url" placeholder="https://www.youtube.com/watch?v=...">
                 <button class="btn btn-primary" id="youtube-submit" type="button" style="flex:0 0 auto; min-width:150px;">轉錄 YouTube</button>
               </div>
+            </div>
+
+            <div class="panel-box">
+              <h3>AI 進階 SEO（可選）</h3>
+              <p>基礎 <code>SEO.txt</code> 不需要外部模型；若要產生整理更完整的 <code>進階SEO.txt</code>，請先連通本地或雲端模型服務，再選擇模型後開始轉錄。API Key 只保留在這次瀏覽器工作階段，不會寫進專案檔案。</p>
+
+              <div class="ai-grid">
+                <div class="field-stack" style="margin-top:0">
+                  <label for="advanced-provider">模型服務商</label>
+                  <select class="text-input select-input" id="advanced-provider"></select>
+                </div>
+                <div class="field-stack" style="margin-top:0">
+                  <label for="advanced-model">模型選擇</label>
+                  <select class="text-input select-input" id="advanced-model" disabled>
+                    <option value="">請先連線模型服務</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field-stack">
+                <label for="advanced-base-url">對接網址（預設可直接用，也可手動修改）</label>
+                <input class="text-input" id="advanced-base-url" type="url" placeholder="">
+              </div>
+
+              <div class="field-stack">
+                <label for="advanced-api-key" id="advanced-api-key-label">API Key</label>
+                <input class="text-input" id="advanced-api-key" type="password" placeholder="本地服務通常可留空">
+              </div>
+
+              <div class="input-row" style="margin-top:12px">
+                <button class="btn btn-primary" id="advanced-connect-btn" type="button">連線並讀取模型</button>
+                <button class="btn btn-soft" id="advanced-clear-btn" type="button">清除設定</button>
+                <div class="connection-pill connection-warn" id="advanced-connection-state">尚未連線</div>
+              </div>
+
+              <div class="helper-text" id="advanced-provider-help">請先選擇模型服務商。連通成功後，才會開放模型下拉選單，且之後的轉錄工作才能額外輸出進階SEO.txt。</div>
+              <div class="helper-text">說明：Groq、Mistral、AI Studio 常見於免費或試用額度場景；Google / OpenAI 常見於正式付費 API 場景，實際仍以您的帳號方案與配額為準。</div>
             </div>
 
             <div class="filename hidden" id="filename-badge"></div>
@@ -813,7 +919,7 @@
             <div class="result-icon">✨</div>
             <div>
               <div class="result-title">第二版輸出完成</div>
-              <div class="result-subtitle" id="result-subtitle">可以下載 SRT、轉錄稿 TXT、SEO.txt。</div>
+              <div class="result-subtitle" id="result-subtitle">可以下載 SRT、轉錄稿 TXT、SEO.txt；若本次有成功連線模型，還會額外提供進階SEO.txt。</div>
             </div>
           </div>
 
@@ -842,8 +948,11 @@
             <button class="btn btn-primary" type="button" id="download-srt-btn">下載 SRT</button>
             <button class="btn btn-soft" type="button" id="download-txt-btn">下載轉錄稿 TXT</button>
             <button class="btn btn-soft" type="button" id="download-seo-btn">下載 SEO.txt</button>
+            <button class="btn btn-soft" type="button" id="download-advanced-seo-btn" disabled>下載進階SEO.txt</button>
             <button class="btn btn-soft" type="button" id="reset-btn">重新輸入</button>
           </div>
+
+          <div class="helper-text" id="advanced-result-note">進階SEO.txt 只有在「開始這次轉錄之前」已成功連線模型服務，並且已選好模型時才會產生。</div>
         </div>
 
         <div class="card-body hidden" id="error-area">
@@ -884,16 +993,27 @@
       segMode: "standard",
       currentJobId: null,
       currentResult: null,
+      llmProviders: [],
       pollingTimer: null,
       elapsedTimer: null,
       installPollTimer: null,
-      startTime: 0
+      startTime: 0,
+      advancedSeoConnected: false
     };
 
     const dropZone = document.getElementById("drop-zone");
     const fileInput = document.getElementById("file-input");
     const youtubeUrlInput = document.getElementById("youtube-url");
     const youtubeSubmit = document.getElementById("youtube-submit");
+    const advancedProviderSelect = document.getElementById("advanced-provider");
+    const advancedModelSelect = document.getElementById("advanced-model");
+    const advancedBaseUrlInput = document.getElementById("advanced-base-url");
+    const advancedApiKeyInput = document.getElementById("advanced-api-key");
+    const advancedApiKeyLabel = document.getElementById("advanced-api-key-label");
+    const advancedConnectBtn = document.getElementById("advanced-connect-btn");
+    const advancedClearBtn = document.getElementById("advanced-clear-btn");
+    const advancedConnectionState = document.getElementById("advanced-connection-state");
+    const advancedProviderHelp = document.getElementById("advanced-provider-help");
     const filenameBadge = document.getElementById("filename-badge");
     const progressArea = document.getElementById("progress-area");
     const resultArea = document.getElementById("result-area");
@@ -905,10 +1025,12 @@
     const srtPreview = document.getElementById("srt-preview");
     const errorMsg = document.getElementById("error-msg");
     const resultSubtitle = document.getElementById("result-subtitle");
+    const advancedResultNote = document.getElementById("advanced-result-note");
     const statSource = document.getElementById("stat-source");
     const statSegments = document.getElementById("stat-segments");
     const statTitle = document.getElementById("stat-title");
     const statFilename = document.getElementById("stat-filename");
+    const downloadAdvancedSeoBtn = document.getElementById("download-advanced-seo-btn");
     const modalOverlay = document.getElementById("modal-overlay");
     const modalTitle = document.getElementById("modal-title");
     const modalBody = document.getElementById("modal-body");
@@ -947,6 +1069,164 @@
         .replaceAll("'", "&#39;");
     }
 
+    function providerStorageKey(provider, suffix) {
+      return `whisper-v2-${provider}-${suffix}`;
+    }
+
+    function getSelectedProviderMeta() {
+      return state.llmProviders.find(item => item.id === advancedProviderSelect.value) || null;
+    }
+
+    function setAdvancedConnectionState(text, tone = "warn") {
+      advancedConnectionState.textContent = text;
+      advancedConnectionState.classList.remove("connection-ok", "connection-warn", "connection-err");
+      advancedConnectionState.classList.add(
+        tone === "ok" ? "connection-ok" : (tone === "err" ? "connection-err" : "connection-warn")
+      );
+    }
+
+    function resetAdvancedModelList(placeholder = "請先連線模型服務") {
+      advancedModelSelect.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>`;
+      advancedModelSelect.disabled = true;
+    }
+
+    function invalidateAdvancedConnection(showNotice = true) {
+      state.advancedSeoConnected = false;
+      resetAdvancedModelList("請先重新連線模型服務");
+      if (showNotice) {
+        setAdvancedConnectionState("設定已變更，請重新連線", "warn");
+      }
+    }
+
+    function saveAdvancedNonSecretSettings() {
+      const provider = advancedProviderSelect.value || "";
+      if (!provider) return;
+      localStorage.setItem("whisper-v2-advanced-provider", provider);
+      localStorage.setItem(providerStorageKey(provider, "base-url"), advancedBaseUrlInput.value.trim());
+      if (advancedModelSelect.value) {
+        localStorage.setItem(providerStorageKey(provider, "model"), advancedModelSelect.value);
+      }
+    }
+
+    function applyProviderMeta(meta, preserveCustomUrl = true) {
+      if (!meta) return;
+
+      const savedUrl = localStorage.getItem(providerStorageKey(meta.id, "base-url")) || "";
+      advancedBaseUrlInput.value = preserveCustomUrl && savedUrl ? savedUrl : (meta.default_base_url || "");
+      advancedApiKeyLabel.textContent = meta.needs_api_key ? (meta.api_key_label || "API Key") : "API Key（本地服務可留空）";
+      advancedApiKeyInput.placeholder = meta.needs_api_key
+        ? `請輸入 ${meta.api_key_label || "API Key"}`
+        : "本地服務通常可留空";
+
+      advancedProviderHelp.textContent = `${meta.description} ${meta.note} 連通成功後才能選模型，並在轉錄完成後額外輸出進階SEO.txt。`;
+      saveAdvancedNonSecretSettings();
+    }
+
+    async function loadAdvancedProviders() {
+      try {
+        const response = await fetch("/llm/providers");
+        const data = await response.json();
+        if (!response.ok || !Array.isArray(data.providers)) {
+          throw new Error(data.error || "無法讀取模型服務商清單。");
+        }
+
+        state.llmProviders = data.providers;
+        advancedProviderSelect.innerHTML = data.providers
+          .map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.label)}</option>`)
+          .join("");
+
+        const savedProvider = localStorage.getItem("whisper-v2-advanced-provider");
+        advancedProviderSelect.value = data.providers.some(item => item.id === savedProvider)
+          ? savedProvider
+          : (data.providers[0]?.id || "");
+
+        applyProviderMeta(getSelectedProviderMeta(), true);
+        setAdvancedConnectionState("尚未連線", "warn");
+      } catch (error) {
+        setAdvancedConnectionState(`讀取服務商失敗：${error.message}`, "err");
+        advancedProviderHelp.textContent = "目前無法讀取模型服務設定，請稍後重新整理頁面再試。";
+      }
+    }
+
+    function renderAdvancedModels(models, selectedModel) {
+      const current = selectedModel || "";
+      advancedModelSelect.innerHTML = models
+        .map(model => `<option value="${escapeHtml(model)}"${model === current ? " selected" : ""}>${escapeHtml(model)}</option>`)
+        .join("");
+      advancedModelSelect.disabled = models.length === 0;
+      if (!models.length) {
+        resetAdvancedModelList("這個服務目前沒有可用模型");
+      }
+    }
+
+    async function connectAdvancedProvider() {
+      const meta = getSelectedProviderMeta();
+      if (!meta) {
+        alert("請先選擇模型服務商。");
+        return;
+      }
+
+      const payload = {
+        provider: advancedProviderSelect.value,
+        base_url: advancedBaseUrlInput.value.trim(),
+        api_key: advancedApiKeyInput.value.trim(),
+        model: advancedModelSelect.value || ""
+      };
+
+      setAdvancedConnectionState("連線中，正在讀取模型清單…", "warn");
+      advancedConnectBtn.disabled = true;
+
+      try {
+        const response = await fetch("/llm/connect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok || data.error) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        const savedModel = localStorage.getItem(providerStorageKey(payload.provider, "model")) || "";
+        const selectedModel = (data.models || []).includes(savedModel) ? savedModel : (data.selected_model || "");
+        renderAdvancedModels(data.models || [], selectedModel);
+        if (selectedModel) {
+          advancedModelSelect.value = selectedModel;
+        }
+        advancedBaseUrlInput.value = data.base_url || advancedBaseUrlInput.value.trim();
+        state.advancedSeoConnected = true;
+        saveAdvancedNonSecretSettings();
+        setAdvancedConnectionState(`已連線：${data.provider_label} / ${selectedModel}`, "ok");
+      } catch (error) {
+        state.advancedSeoConnected = false;
+        resetAdvancedModelList("連線失敗，請修正後重試");
+        setAdvancedConnectionState(`連線失敗：${error.message}`, "err");
+      } finally {
+        advancedConnectBtn.disabled = false;
+      }
+    }
+
+    function clearAdvancedSettings() {
+      state.advancedSeoConnected = false;
+      advancedApiKeyInput.value = "";
+      resetAdvancedModelList("請先連線模型服務");
+      applyProviderMeta(getSelectedProviderMeta(), false);
+      setAdvancedConnectionState("尚未連線", "warn");
+      localStorage.removeItem(providerStorageKey(advancedProviderSelect.value, "model"));
+      saveAdvancedNonSecretSettings();
+    }
+
+    function appendAdvancedSeoFields(formData) {
+      if (!state.advancedSeoConnected || !advancedModelSelect.value) {
+        return;
+      }
+      formData.append("advanced_seo_enabled", "1");
+      formData.append("advanced_seo_provider", advancedProviderSelect.value);
+      formData.append("advanced_seo_base_url", advancedBaseUrlInput.value.trim());
+      formData.append("advanced_seo_api_key", advancedApiKeyInput.value.trim());
+      formData.append("advanced_seo_model", advancedModelSelect.value);
+    }
+
     function setIdleStatus() {
       showPanel("progress");
       statusTitle.textContent = "準備就緒";
@@ -958,7 +1238,10 @@
     function setProcessingStatus(label) {
       showPanel("progress");
       statusTitle.textContent = "Whisper 正在辨識中";
-      statusText.textContent = `正在處理 ${label}，首次載入模型、下載 YouTube、或使用 CPU 模式都可能需要比較久。`;
+      const advancedHint = state.advancedSeoConnected && advancedModelSelect.value
+        ? `這次完成字幕後，還會再用 ${advancedProviderSelect.options[advancedProviderSelect.selectedIndex]?.text || "已連線模型"} 生成進階SEO.txt。`
+        : "若要拿到進階SEO.txt，請先在左側 AI 進階 SEO 區塊完成模型連線。";
+      statusText.textContent = `正在處理 ${label}，首次載入模型、下載 YouTube、或使用 CPU 模式都可能需要比較久。${advancedHint}`;
       progressWrap.classList.remove("hidden");
       elapsedText.classList.remove("hidden");
       state.startTime = Date.now();
@@ -1024,6 +1307,7 @@
       const formData = new FormData();
       formData.append("file", file);
       formData.append("seg_mode", state.segMode);
+      appendAdvancedSeoFields(formData);
       await submitForm(formData, file.name);
     }
 
@@ -1037,6 +1321,7 @@
       const formData = new FormData();
       formData.append("youtube_url", youtubeUrl);
       formData.append("seg_mode", state.segMode);
+      appendAdvancedSeoFields(formData);
       await submitForm(formData, "YouTube 影片");
     }
 
@@ -1046,13 +1331,26 @@
       const srt = data.srt || "";
       const lines = srt.split(/\r?\n/);
       const previewLines = lines.length > 120 ? lines.slice(0, 120).join("\n") + "\n\n...（預覽已截斷，請下載完整檔案）" : srt;
+      const advancedAvailable = Boolean(data.advanced_seo_available);
+      const advancedRequested = Boolean(data.advanced_seo_requested);
+      const advancedProvider = data.advanced_seo_provider || "";
+      const advancedModel = data.advanced_seo_model || "";
+      const advancedError = data.advanced_seo_error || "";
 
-      resultSubtitle.textContent = `已完成 ${data.filename}、${data.text_filename}、${data.seo_filename} 三種輸出。`;
+      resultSubtitle.textContent = advancedAvailable
+        ? `已完成 ${data.filename}、${data.text_filename}、${data.seo_filename}，並額外產生 ${data.advanced_seo_filename}。`
+        : `已完成 ${data.filename}、${data.text_filename}、${data.seo_filename} 三種輸出。`;
       statSource.textContent = data.source_type === "youtube" ? "YouTube" : "本機檔案";
       statSegments.textContent = data.segment_count || 0;
       statTitle.textContent = data.original_title || "未提供";
       statFilename.textContent = data.filename || "-";
       srtPreview.textContent = previewLines;
+      downloadAdvancedSeoBtn.disabled = !advancedAvailable;
+      advancedResultNote.textContent = advancedAvailable
+        ? `這次已使用 ${advancedProvider}${advancedModel ? ` / ${advancedModel}` : ""} 生成進階SEO.txt。`
+        : (advancedRequested
+          ? `這次有啟用進階 SEO，但模型整理失敗：${advancedError || "請檢查 API、模型名稱或本地模型服務狀態。"}`
+          : "這次只產生基礎 SEO.txt。若要拿到進階SEO.txt，請先在左側 AI 進階 SEO 區塊完成連線與選模，然後重新轉錄。");
       showPanel("result");
     }
 
@@ -1077,6 +1375,9 @@
             setError("已取消轉錄。");
           } else if (data.status === "not_found") {
             setError("找不到這筆工作，請重新輸入。");
+          } else if (data.message) {
+            statusTitle.textContent = /進階SEO|進階 SEO/.test(data.message) ? "AI 正在整理進階 SEO" : "Whisper 正在辨識中";
+            statusText.textContent = data.message;
           }
         } catch (error) {
           setError(`輪詢狀態失敗：${error.message}`);
@@ -1093,6 +1394,8 @@
       youtubeUrlInput.value = "";
       filenameBadge.classList.add("hidden");
       filenameBadge.textContent = "";
+      downloadAdvancedSeoBtn.disabled = true;
+      advancedResultNote.textContent = "進階SEO.txt 只有在「開始這次轉錄之前」已成功連線模型服務，並且已選好模型時才會產生。";
       setIdleStatus();
     }
 
@@ -1112,7 +1415,7 @@
         <div class="status-card" style="min-height:220px">
           <div class="spinner"></div>
           <div class="status-title">正在檢查環境</div>
-          <div class="status-text">系統正在確認 Python、Flask、Whisper、yt-dlp、PyTorch 與 ffmpeg。</div>
+          <div class="status-text">系統正在確認 Python、Flask、Whisper、yt-dlp、requests、PyTorch 與 ffmpeg。</div>
         </div>
       `);
 
@@ -1126,7 +1429,7 @@
     }
 
     function renderEnvCheckResult(data) {
-      const items = ["python", "flask", "whisper", "yt_dlp", "torch", "ffmpeg"];
+      const items = ["python", "flask", "whisper", "yt_dlp", "requests", "torch", "ffmpeg"];
       const missing = data.missing_pip || [];
       const pythonOk = !data.python || data.python.ok;
       const pythonBlocker = data.python_blocker || "";
@@ -1416,6 +1719,28 @@
       startUpload(file);
     });
 
+    advancedProviderSelect.addEventListener("change", () => {
+      applyProviderMeta(getSelectedProviderMeta(), true);
+      invalidateAdvancedConnection(false);
+      setAdvancedConnectionState("尚未連線", "warn");
+    });
+
+    advancedBaseUrlInput.addEventListener("input", () => {
+      saveAdvancedNonSecretSettings();
+      invalidateAdvancedConnection();
+    });
+
+    advancedApiKeyInput.addEventListener("input", () => {
+      invalidateAdvancedConnection();
+    });
+
+    advancedModelSelect.addEventListener("change", () => {
+      saveAdvancedNonSecretSettings();
+    });
+
+    advancedConnectBtn.addEventListener("click", connectAdvancedProvider);
+    advancedClearBtn.addEventListener("click", clearAdvancedSettings);
+
     youtubeSubmit.addEventListener("click", startYoutubeUpload);
     youtubeUrlInput.addEventListener("keydown", event => {
       if (event.key === "Enter") {
@@ -1441,6 +1766,11 @@
     document.getElementById("download-seo-btn").addEventListener("click", () => {
       if (!state.currentJobId) return;
       window.location.href = `/download/${state.currentJobId}/seo`;
+    });
+
+    downloadAdvancedSeoBtn.addEventListener("click", () => {
+      if (!state.currentJobId || downloadAdvancedSeoBtn.disabled) return;
+      window.location.href = `/download/${state.currentJobId}/advanced-seo`;
     });
 
     document.getElementById("reset-btn").addEventListener("click", resetAll);
@@ -1480,6 +1810,7 @@
     });
 
     setIdleStatus();
+    loadAdvancedProviders();
   </script>
 </body>
 </html>

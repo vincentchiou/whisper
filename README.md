@@ -1,96 +1,139 @@
 # Whisper 字幕神器 V2
 
-這是一個在本機執行的 Whisper 字幕轉錄工具，支援：
+Whisper 字幕神器 V2 是一個給 Windows 使用者的本機字幕工具，支援上傳音訊 / 影片，或直接貼上 YouTube 網址，快速輸出字幕、逐字稿與 SEO 內容。
 
-- 本機上傳音訊 / 影片
-- 直接貼上 YouTube 影片網址
-- 輸出 SRT 字幕
-- 輸出純文字轉錄稿 TXT
-- 輸出 YouTube SEO 建議內容 `SEO.txt`
+## 主要功能
 
-整體架構是 `Flask + 單頁 HTML/CSS/JS`，適合在 Windows 上直接啟動使用。
+- 上傳本機音訊 / 影片
+- 貼上 YouTube 影片網址
+- Whisper 語音轉文字
+- 字幕切割模式：`fine`、`standard`、`coarse`
+- 下載 `SRT / TXT / SEO.txt / 進階SEO.txt`
+- 支援本地與雲端模型生成進階 SEO
+- 啟用 Silero VAD 過濾無語音或異常片段
+- 顯示 Python、Whisper、yt-dlp、PyTorch、ffmpeg、CUDA 狀態
 
-## 第二版重點
+## 輸出檔案
 
-- 新增 YouTube 網址輸入
-- 新增純文字轉錄稿輸出
-- 新增 `SEO.txt` 輸出，內容包含：
-  - 建議標題 3 個
-  - 內容摘要與吸引人的鉤子
-  - SRT 章節目錄
-  - 關鍵字與標籤建議
+每次下載的檔名都會改用影片或逐字稿的關鍵詞命名，並限制在 20 字以內，方便整理：
 
-## 目前功能
+- `關鍵詞字幕.srt`
+- `關鍵詞逐字稿.txt`
+- `關鍵詞SEO.txt`
+- `關鍵詞進階SEO.txt`
 
-- 上傳格式：`mp3`、`mp4`、`wav`、`m4a`、`ogg`、`webm`
-- Whisper `medium` 模型轉錄
-- 三種字幕切割模式：`fine`、`standard`、`coarse`
-- 下載：
-  - `.srt`
-  - `.txt`
-  - `SEO.txt`
-- 環境檢查：
-  - Python
-  - Flask
-  - openai-whisper
-  - yt-dlp
-  - PyTorch
-  - ffmpeg
-- CPU / GPU / CUDA 狀態查看與切換
+所有文字檔皆使用 `UTF-8 with BOM` 輸出，方便 Windows 直接開啟。
+
+## 進階 SEO
+
+基礎 `SEO.txt` 使用規則式整理，不需要外部模型。  
+若要產生整理品質更高的 `進階SEO.txt`，請先在介面左側完成模型連線，並選好模型後再開始轉錄。
+
+目前支援：
+
+- 本地模型：`Ollama`、`LM Studio`
+- 免費 / 低門檻雲端：`Groq`、`Mistral`、`Google AI Studio`
+- 付費雲端：`Google Gemini API`、`OpenAI`
+
+注意事項：
+
+- API Key 只保留在這次瀏覽器工作階段，不會寫進專案檔案
+- 只有在「開始這次轉錄之前」已成功連線並選好模型，才會生成 `進階SEO.txt`
+
+### 進階 SEO 固定格式
+
+`進階SEO.txt` 固定輸出四段：
+
+1. `一、建議標題 3 個`
+2. `二、內容摘要`
+3. `三、關鍵字與標籤`
+4. `四、章節目錄`
+
+格式規則：
+
+- `內容摘要`
+  - 先給約 300 字的摘要段落
+  - 再用條列列出核心重點
+  - 不可出現「第一點 / 第二點 / 第三點」
+- `關鍵字與標籤`
+  - 只輸出一行 hashtags
+  - 格式固定為 `#關鍵字,#關鍵字,...`
+- `章節目錄`
+  - 直接說明該段重點
+  - 每段約 1 到 2 句
+  - 不可出現「這段在說明什麼」這類模板語
+- 不可輸出 `補充提醒`、`第五段`、`第六段`、免責聲明或多餘寒暄
+
+### 長文本處理
+
+若逐字稿太長，進階 SEO 會自動：
+
+1. 先把內容切成多段
+2. 分段交給模型整理重點
+3. 再把分段結果整合成最後的 `進階SEO.txt`
+
+這樣可以降低本地模型或雲端模型因內容過長而超時的機率，特別是 `LM Studio` 或較小型本地模型。
+
+## Silero VAD
+
+專案已接入 `silero-vad`：
+
+- 短影音：Whisper 完成後，會再過濾明顯不正常的字幕片段
+- 長影音：分段轉錄前會先判斷該段是否有正常人聲
+- 沒有可用人聲的 chunk 會略過，不會因最後一段空白就讓整體失敗
+
+如果 VAD 偵測失敗，系統會自動退回一般 Whisper 流程，不會直接中斷整次任務。
 
 ## 啟動方式
 
-直接執行：
+在專案資料夾直接執行：
 
 ```bat
 start.bat
 ```
 
-啟動後會開啟：
+瀏覽器開啟：
 
 - [http://localhost:5000](http://localhost:5000)
 
-## 安裝需求
+## 第一次安裝
 
-- Windows 10 / 11
-- Python 與 pip
-- `ffmpeg`
-- `yt-dlp`
-- 建議記憶體至少 8 GB
-- 若有 NVIDIA GPU，可搭配 CUDA 版 PyTorch 加速
+專案會在資料夾內建立自己的 `.venv`，避免和其他 Python 環境互相干擾。
 
-## 手動安裝套件
+主要依賴：
 
-```bat
-python -m pip install -r requirements.txt
+```txt
+flask
+openai-whisper
+yt-dlp
+requests
+silero-vad
 ```
 
-## ffmpeg 提醒
+## ffmpeg
 
-如果系統 PATH 還沒有 `ffmpeg`，可以：
+程式會依序嘗試：
 
-1. 使用 CapCut / 剪映內建的 ffmpeg
-2. 或自行安裝到 `C:\ffmpeg\bin`
-3. 並把路徑加到系統 PATH
+- 系統 `PATH`
+- `C:\ffmpeg\bin`
+- `C:\Program Files\ffmpeg\bin`
+- CapCut / 剪映 內建 ffmpeg
 
-## YouTube SEO 說明
+## 主要檔案
 
-`SEO.txt` 是依目前 YouTube 官方公開建議整理的輔助輸出，方向包含：
+- [app.py](</H:/我的雲端硬碟/Claude/專案-Whisper - GPT/app.py>)
+- [index.html](</H:/我的雲端硬碟/Claude/專案-Whisper - GPT/index.html>)
+- [start.bat](</H:/我的雲端硬碟/Claude/專案-Whisper - GPT/start.bat>)
+- [requirements.txt](</H:/我的雲端硬碟/Claude/專案-Whisper - GPT/requirements.txt>)
+- [memory.md](</H:/我的雲端硬碟/Claude/專案-Whisper - GPT/memory.md>)
+- [SKILL.md](</H:/我的雲端硬碟/Claude/專案-Whisper - GPT/SKILL.md>)
 
-- 標題與描述比 tags 更重要
-- 描述前幾行要先說清楚影片主題
-- 章節需從 `00:00` 開始，且至少 3 段
-- tags 主要作為補強，不是唯一重點
+## 發布前規則
 
-這份內容是依轉錄稿自動整理的建議草稿，建議上片前再人工微調一次。
+- 所有對外輸出一律使用繁體中文
+- 發布 GitHub / Release 前，必須掃描 `md / txt / py / bat / html` 檔案
+- 不可把 API key、token、secret、password、個人憑證推上 GitHub
 
-## 目錄
+## GitHub
 
-- `app.py`：Flask 後端與 Whisper 工作流程
-- `index.html`：前端操作頁
-- `start.bat`：Windows 啟動腳本
-- `requirements.txt`：基本套件需求
-- `memory.md`：這個專案的壓縮記憶
-- `SKILL.md`：下次續接時的快速接手技能摘要
-- `SOP-Whisper專案流程.md`：成功操作流程
-- `uploads/`：暫存上傳檔案
+- Repo: [vincentchiou/whisper](https://github.com/vincentchiou/whisper)
