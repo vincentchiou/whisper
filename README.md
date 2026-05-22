@@ -35,6 +35,16 @@ Whisper 字幕神器 V2 是一個給 Windows 使用者的本機字幕工具，�
 - 免費 / 低門檻雲端：`Groq`、`Mistral`、`Google AI Studio`
 - 付費雲端：`Google Gemini API`、`OpenAI`
 
+模型選擇規則：
+
+- 連線成功後可直接用下拉選單選模型
+- 若是 `LM Studio`，切換下拉選單後會自動要求 LM Studio 載入該模型
+- 就算沒有手動重選，下次真正生成 `進階SEO.txt` 前也會再次確認 `LM Studio` 已載入該模型
+- 若思考型模型第一輪只回推理內容，系統會自動再要求一次最終答案，降低空白回應機率
+- `LM Studio` 建議優先選一般對話 / instruct 模型，例如 `gemma-4-e4b-it`
+- `qwen ... reasoning / thinking` 這類思考型模型可連線與切換，但完整 `進階SEO.txt` 仍可能只吐推理內容，不建議當預設 SEO 模型
+- 若模型漏掉「關鍵字與標籤」或「章節目錄」，系統會自動用程式分析結果補回，不讓第三、四段留白
+
 注意事項：
 
 - API Key 只保留在這次瀏覽器工作階段，不會寫進專案檔案

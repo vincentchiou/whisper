@@ -110,15 +110,33 @@
    - 轉錄進度
    - 預覽字幕
    - 下載 `.srt`
+   - 下載 `.txt`
+   - 下載 `SEO.txt`
+   - 下載 `進階SEO.txt`
    - 環境檢查
    - GPU 切換
+   - YouTube 網址輸入
+   - `LM Studio` / `Ollama` / 雲端模型連線
+   - `LM Studio` 模型切換後是否自動載入
+
+### B-1. 如果是檢查進階 SEO 是否正常
+
+1. 先確認已連線模型
+2. 若是 `LM Studio`，優先用一般對話 / instruct 類模型，例如 `gemma-4-e4b-it`
+3. 產生 `進階SEO.txt` 後確認：
+   - `二、內容摘要`
+   - `三、關鍵字與標籤`
+   - `四、章節目錄`
+4. 若模型漏掉第 3、4 段，系統應自動補回，不可留白
 
 ### C. 如果是要再部署到 GitHub
 
 1. `git status`
-2. `git add .`
-3. `git commit -m "訊息"`
-4. `git push`
+2. 發布前先掃描機密資訊
+3. `git add .`
+4. `git commit -m "訊息"`
+5. `git push`
+6. 建立新的 GitHub Release
 
 ---
 
@@ -129,6 +147,7 @@
 - 優先維持目前架構
 - 修改前先確認前後端 API 是否一致
 - 若對話變長，要回寫 `memory.md`
+- 發布前要檢查 `md / txt / py / bat / html` 是否含 API key、token、secret、password 或個資
 
 ---
 

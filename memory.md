@@ -42,6 +42,13 @@
   - `Google AI Studio`
   - `Google Gemini API`
   - `OpenAI`
+- 連線成功後可直接用下拉選單切換模型
+- 若 provider 是 `LM Studio`，切換下拉選單時要自動呼叫模型載入，不只是記住模型名稱
+- 真正生成 `進階SEO.txt` 前，也要再次確認 `LM Studio` 已載入所選模型
+- 若 `LM Studio` 的思考型模型第一輪只回推理內容，系統要自動重試一次並要求只輸出最終答案
+- `LM Studio` 實測可穩定跑完整 `進階SEO.txt` 的模型，優先用一般對話 / instruct 類，例如 `gemma-4-e4b-it`
+- `qwen ... reasoning / thinking` 這類思考型模型目前可切換、可短回覆，但完整 `進階SEO.txt` 首輪仍可能只吐推理內容
+- 若模型漏掉第 3 段「關鍵字與標籤」或第 4 段「章節目錄」，要自動回填程式分析出的 hashtags 與章節，不可留白
 - 只有在「開始這次轉錄之前」已連線成功並選好模型，才會生成 `進階SEO.txt`
 - API Key 只保留在瀏覽器工作階段，不寫入專案檔案
 

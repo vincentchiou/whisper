@@ -276,6 +276,8 @@ def list_llm_provider_options() -> list[dict[str, Any]]:
                 "api_key_label": definition["api_key_label"],
                 "description": definition["description"],
                 "note": definition["note"],
+                "supports_model_switch": True,
+                "auto_load_on_select": provider == "lmstudio",
             }
         )
     return options
@@ -312,6 +314,30 @@ def normalize_ollama_base_url(base_url: str) -> str:
     return cleaned
 
 
+def normalize_lmstudio_base_url(base_url: str) -> str:
+    cleaned = normalize_text(base_url).rstrip("/")
+    if not cleaned:
+        return ""
+    if cleaned.endswith("/api/v1"):
+        cleaned = cleaned[:-7]
+    elif "/api/v1/" in cleaned:
+        cleaned = cleaned.split("/api/v1/", 1)[0]
+    if cleaned.endswith("/api"):
+        cleaned = cleaned[:-4]
+    if cleaned.endswith("/v1"):
+        return cleaned
+    if "/v1/" in cleaned:
+        return cleaned.split("/v1/", 1)[0] + "/v1"
+    return cleaned + "/v1"
+
+
+def lmstudio_native_base_url(base_url: str) -> str:
+    normalized = normalize_lmstudio_base_url(base_url)
+    if normalized.endswith("/v1"):
+        return normalized[:-2] + "api/v1"
+    return normalized.rstrip("/") + "/api/v1"
+
+
 def normalize_provider_base_url(provider: str, base_url: str | None) -> str:
     definition = get_provider_definition(provider)
     candidate = normalize_text(base_url or "") or str(definition.get("default_base_url", ""))
@@ -319,6 +345,8 @@ def normalize_provider_base_url(provider: str, base_url: str | None) -> str:
 
     if provider == "ollama":
         return normalize_ollama_base_url(candidate)
+    if provider == "lmstudio":
+        return normalize_lmstudio_base_url(candidate)
     if provider in OPENAI_STYLE_PROVIDERS:
         return normalize_openai_base_url(candidate)
     if provider in GEMINI_STYLE_PROVIDERS:
@@ -1331,6 +1359,63 @@ def build_advanced_seo_prompt(
     return system_prompt, user_prompt
 
 
+def build_compact_local_advanced_seo_prompt(
+    transcript_text: str,
+    segments: list[dict[str, Any]],
+    base_title: str,
+    source_url: str | None = None,
+    *,
+    context_reference: str | None = None,
+) -> tuple[str, str]:
+    keywords = top_keywords(transcript_text, base_title, limit=10)
+    chapters = build_chapters(segments, base_title)
+    keyword_text = "、".join(keywords[:8]) if keywords else "Whisper、字幕、YouTube、SEO"
+    chapter_outline = "\n".join(f"{timestamp} {title}" for timestamp, title in chapters[:6])
+    context_body = context_reference or build_transcript_excerpt(transcript_text, max_chars=2200)
+    title_seed = normalize_text(base_title) or "影片重點整理"
+
+    system_prompt = (
+        "你是繁體中文 YouTube SEO 編輯，請直接輸出最終內容，不要解釋、不要思考過程、不要 Markdown。"
+        "請固定輸出這四段：\n"
+        "一、建議標題\n"
+        "1. ...\n2. ...\n3. ...\n\n"
+        "二、內容摘要\n"
+        "先寫約 300 字以內的摘要，再用條列列出 3 個核心重點。\n\n"
+        "三、關鍵字與標籤\n"
+        "只輸出一行 #關鍵字,#關鍵字,...\n\n"
+        "四、章節目錄\n"
+        "每行格式為 00:00 直接說該段重點，用 1 到 2 句話即可。\n\n"
+        "規則：全部使用繁體中文；不要寫第一點、第二點；不要寫「這段在說明什麼」；不要補充提醒。"
+    )
+
+    user_prompt = (
+        f"主題：{title_seed}\n"
+        f"來源：{source_url or '本機檔案'}\n"
+        f"關鍵字參考：{keyword_text}\n\n"
+        f"章節草稿：\n{chapter_outline or '00:00 影片重點整理'}\n\n"
+        f"逐字稿重點：\n{context_body}"
+    )
+    return system_prompt, user_prompt
+
+
+def build_advanced_seo_formatter_prompt(draft_text: str) -> tuple[str, str]:
+    system_prompt = (
+        "你是繁體中文 SEO 排版整理助手。"
+        "請把草稿改寫成固定四段，不要解釋、不要 Markdown、不要前言、不要後記。"
+        "輸出格式只能是：\n"
+        "一、建議標題\n"
+        "1. ...\n2. ...\n3. ...\n\n"
+        "二、內容摘要\n"
+        "先寫約 300 字以內的摘要，再列出 3 個核心重點條列。\n\n"
+        "三、關鍵字與標籤\n"
+        "只輸出一行 #關鍵字,#關鍵字,...\n\n"
+        "四、章節目錄\n"
+        "每行格式為 00:00 直接講該段重點，用 1 到 2 句話即可。"
+    )
+    user_prompt = f"請把以下草稿整理成指定格式，全部使用繁體中文：\n\n{draft_text}"
+    return system_prompt, user_prompt
+
+
 def strip_code_fences(text: str) -> str:
     cleaned = str(text or "").strip()
     cleaned = re.sub(r"^```[\w-]*\s*", "", cleaned)
@@ -1409,7 +1494,135 @@ def is_reasonable_text_model(model_id: str) -> bool:
     return bool(model) and not any(token in model for token in blocked_tokens)
 
 
-def list_models_for_provider(config: AdvancedSeoConfig) -> list[str]:
+def extract_model_ids(model_options: list[dict[str, Any]]) -> list[str]:
+    model_ids: list[str] = []
+    for item in model_options:
+        model_id = normalize_text(item.get("value") or item.get("id") or "")
+        if model_id:
+            model_ids.append(model_id)
+    return model_ids
+
+
+def pick_default_model(provider: str, requested_model: str, model_options: list[dict[str, Any]]) -> str:
+    model_ids = extract_model_ids(model_options)
+    if requested_model and requested_model in model_ids:
+        return requested_model
+    if provider == "lmstudio":
+        for item in model_options:
+            if item.get("loaded"):
+                model_id = normalize_text(item.get("value") or item.get("id") or "")
+                if model_id:
+                    return model_id
+    return model_ids[0] if model_ids else ""
+
+
+def post_openai_style_chat(
+    config: AdvancedSeoConfig,
+    system_text: str,
+    user_text: str,
+    *,
+    max_tokens: int,
+    temperature: float,
+    timeout_seconds: int,
+) -> dict[str, Any]:
+    headers = {"Content-Type": "application/json"}
+    if config.api_key:
+        headers["Authorization"] = f"Bearer {config.api_key}"
+
+    payload = {
+        "model": config.model,
+        "messages": [
+            {"role": "system", "content": system_text},
+            {"role": "user", "content": user_text},
+        ],
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    response = requests.post(
+        f"{config.base_url}/chat/completions",
+        headers=headers,
+        json=payload,
+        timeout=timeout_seconds,
+    )
+    if not response.ok:
+        raise RuntimeError(f"{provider_label(config.provider)} 生成失敗：{response_error_message(response)}")
+    return response.json()
+
+
+def extract_openai_style_response(data: dict[str, Any]) -> tuple[str, str, str]:
+    choices = as_iterable_list(data.get("choices"))
+    choice = choices[0] if choices and isinstance(choices[0], dict) else {}
+    message = choice.get("message") if isinstance(choice.get("message"), dict) else {}
+    content = content_blocks_to_text(message.get("content")) if isinstance(message, dict) else ""
+    reasoning = content_blocks_to_text(message.get("reasoning_content")) if isinstance(message, dict) else ""
+    if not reasoning and isinstance(message, dict):
+        reasoning_block = message.get("reasoning")
+        if isinstance(reasoning_block, dict):
+            reasoning = content_blocks_to_text(reasoning_block.get("content"))
+    finish_reason = str(choice.get("finish_reason") or "").strip().lower()
+    return strip_code_fences(content), strip_code_fences(reasoning), finish_reason
+
+
+def request_openai_style_text(
+    config: AdvancedSeoConfig,
+    system_text: str,
+    user_text: str,
+    *,
+    max_tokens: int,
+    temperature: float,
+    timeout_seconds: int,
+) -> str:
+    model_id = str(config.model or "").strip().lower()
+    use_no_think_hint = (
+        config.provider == "lmstudio"
+        and any(token in model_id for token in ("reasoning", "think"))
+    )
+    prepared_user_text = f"/no_think\n{user_text}" if use_no_think_hint and not str(user_text).lstrip().startswith("/no_think") else user_text
+
+    data = post_openai_style_chat(
+        config,
+        system_text,
+        prepared_user_text,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        timeout_seconds=timeout_seconds,
+    )
+    content, reasoning, finish_reason = extract_openai_style_response(data)
+    if content:
+        return content
+
+    # Some LM Studio reasoning models may spend the first pass on internal
+    # reasoning and omit the final answer. Retry once with stricter wording and
+    # a larger token budget so the user still gets a usable result.
+    if config.provider == "lmstudio" and reasoning:
+        retry_system = (
+            f"{system_text}\n\n"
+            "請直接輸出最終答案，不要輸出思考過程、分析、草稿、推理內容或額外說明。"
+        )
+        retry_user = (
+            f"{prepared_user_text}\n\n"
+            "請直接輸出最終答案，略過思考過程，只保留使用者真正需要的內容。"
+        )
+        retry_tokens = max(max_tokens, 700)
+        if finish_reason == "length":
+            retry_tokens = max(retry_tokens, min(max_tokens * 2, 3200))
+
+        retry_data = post_openai_style_chat(
+            config,
+            retry_system,
+            retry_user,
+            max_tokens=retry_tokens,
+            temperature=min(temperature, 0.2),
+            timeout_seconds=max(timeout_seconds, 300),
+        )
+        retry_content, _, _ = extract_openai_style_response(retry_data)
+        if retry_content:
+            return retry_content
+
+    raise RuntimeError(f"{provider_label(config.provider)} 沒有回傳可用內容。")
+
+
+def list_model_options_for_provider(config: AdvancedSeoConfig) -> list[dict[str, Any]]:
     ensure_requests_available()
 
     provider = config.provider
@@ -1422,24 +1635,56 @@ def list_models_for_provider(config: AdvancedSeoConfig) -> list[str]:
         if not response.ok:
             raise RuntimeError(f"Ollama 連線失敗：{response_error_message(response)}")
         data = response.json()
-        models = [
-            str(item.get("model") or item.get("name") or "").strip()
-            for item in as_iterable_list(data.get("models"))
-            if str(item.get("model") or item.get("name") or "").strip()
-        ]
-        return sorted(dict.fromkeys(models))
+        options = []
+        for item in as_iterable_list(data.get("models")):
+            model_id = str(item.get("model") or item.get("name") or "").strip()
+            if model_id:
+                options.append({"value": model_id, "label": model_id, "loaded": False})
+        return sorted(options, key=lambda item: str(item.get("label") or item.get("value") or "").lower())
+
+    if provider == "lmstudio":
+        try:
+            response = requests.get(f"{lmstudio_native_base_url(config.base_url)}/models", headers=headers, timeout=20)
+            if response.ok:
+                data = response.json()
+                options: list[dict[str, Any]] = []
+                for item in as_iterable_list(data.get("models")):
+                    if str(item.get("type") or "").strip().lower() != "llm":
+                        continue
+                    model_id = str(item.get("key") or item.get("id") or "").strip()
+                    if not model_id or not is_reasonable_text_model(model_id):
+                        continue
+                    display_name = str(item.get("display_name") or model_id).strip()
+                    loaded = bool(as_iterable_list(item.get("loaded_instances")))
+                    options.append(
+                        {
+                            "value": model_id,
+                            "label": f"{display_name}（已載入）" if loaded else display_name,
+                            "loaded": loaded,
+                            "display_name": display_name,
+                        }
+                    )
+                if options:
+                    unique = {str(item["value"]): item for item in options}
+                    return sorted(
+                        unique.values(),
+                        key=lambda item: (not bool(item.get("loaded")), str(item.get("display_name") or item.get("value") or "").lower()),
+                    )
+        except Exception:
+            pass
 
     if provider in OPENAI_STYLE_PROVIDERS:
         response = requests.get(f"{config.base_url}/models", headers=headers, timeout=20)
         if not response.ok:
             raise RuntimeError(f"{provider_label(provider)} 連線失敗：{response_error_message(response)}")
         data = response.json()
-        models = [
-            str(item.get("id") or "").strip()
-            for item in as_iterable_list(data.get("data"))
-            if is_reasonable_text_model(item.get("id"))
-        ]
-        return sorted(dict.fromkeys(models))
+        options = []
+        for item in as_iterable_list(data.get("data")):
+            model_id = str(item.get("id") or "").strip()
+            if is_reasonable_text_model(model_id):
+                options.append({"value": model_id, "label": model_id, "loaded": False})
+        unique = {str(item["value"]): item for item in options}
+        return sorted(unique.values(), key=lambda item: str(item.get("label") or item.get("value") or "").lower())
 
     if provider in GEMINI_STYLE_PROVIDERS:
         response = requests.get(
@@ -1450,49 +1695,76 @@ def list_models_for_provider(config: AdvancedSeoConfig) -> list[str]:
         if not response.ok:
             raise RuntimeError(f"{provider_label(provider)} 連線失敗：{response_error_message(response)}")
         data = response.json()
-        models = []
+        options = []
         for item in as_iterable_list(data.get("models")):
             methods = item.get("supportedGenerationMethods") or []
             if "generateContent" not in methods:
                 continue
             model_name = str(item.get("name") or "").removeprefix("models/").strip()
             if model_name:
-                models.append(model_name)
-        return sorted(dict.fromkeys(models))
+                options.append({"value": model_name, "label": model_name, "loaded": False})
+        unique = {str(item["value"]): item for item in options}
+        return sorted(unique.values(), key=lambda item: str(item.get("label") or item.get("value") or "").lower())
 
     raise RuntimeError("尚未支援這個模型服務商。")
 
 
+def list_models_for_provider(config: AdvancedSeoConfig) -> list[str]:
+    return extract_model_ids(list_model_options_for_provider(config))
+
+
+def activate_provider_model(config: AdvancedSeoConfig) -> dict[str, Any]:
+    ensure_requests_available()
+
+    if not config.model:
+        raise RuntimeError("請先選擇模型，才能套用。")
+
+    if config.provider == "lmstudio":
+        headers = {"Content-Type": "application/json"}
+        if config.api_key:
+            headers["Authorization"] = f"Bearer {config.api_key}"
+        response = requests.post(
+            f"{lmstudio_native_base_url(config.base_url)}/models/load",
+            headers=headers,
+            json={"model": config.model, "echo_load_config": True},
+            timeout=600,
+        )
+        if not response.ok:
+            raise RuntimeError(f"LM Studio 載入模型失敗：{response_error_message(response)}")
+        data = response.json()
+        loaded_model = normalize_text(data.get("instance_id") or config.model) or config.model
+        load_seconds = data.get("load_time_seconds")
+        message = f"LM Studio 已切換並載入 {loaded_model}"
+        if isinstance(load_seconds, (int, float)):
+            message += f"（約 {load_seconds:.1f} 秒）"
+        return {
+            "selected_model": config.model,
+            "loaded_model": loaded_model,
+            "message": message,
+            "loaded": True,
+        }
+
+    models = list_models_for_provider(config)
+    if config.model not in models:
+        raise RuntimeError("目前找不到這個模型，請重新連線後再試一次。")
+    return {
+        "selected_model": config.model,
+        "loaded_model": config.model,
+        "message": f"已切換為 {provider_label(config.provider)} 的 {config.model}",
+        "loaded": False,
+    }
+
+
 def call_openai_style_chat(config: AdvancedSeoConfig, system_prompt: str, user_prompt: str) -> str:
     ensure_requests_available()
-    headers = {"Content-Type": "application/json"}
-    if config.api_key:
-        headers["Authorization"] = f"Bearer {config.api_key}"
-    payload = {
-        "model": config.model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        "temperature": 0.3,
-        "max_tokens": 1400,
-    }
-    response = requests.post(
-        f"{config.base_url}/chat/completions",
-        headers=headers,
-        json=payload,
-        timeout=120,
+    return request_openai_style_text(
+        config,
+        system_prompt,
+        user_prompt,
+        max_tokens=1400,
+        temperature=0.3,
+        timeout_seconds=120,
     )
-    if not response.ok:
-        raise RuntimeError(f"{provider_label(config.provider)} 生成失敗：{response_error_message(response)}")
-
-    data = response.json()
-    choices = as_iterable_list(data.get("choices"))
-    message = choices[0].get("message") if choices and isinstance(choices[0], dict) else {}
-    content = content_blocks_to_text(message.get("content")) if isinstance(message, dict) else ""
-    if not content:
-        raise RuntimeError(f"{provider_label(config.provider)} 沒有回傳可用文字內容。")
-    return strip_code_fences(content)
 
 
 def call_ollama_chat(config: AdvancedSeoConfig, system_prompt: str, user_prompt: str) -> str:
@@ -2452,26 +2724,59 @@ def llm_connect():
     base_url = normalize_provider_base_url(provider, data.get("base_url", ""))
     api_key = normalize_text(data.get("api_key", "")) or None
     model = normalize_provider_model(provider, data.get("model", ""))
+    activate_model = normalize_text(data.get("activate_model", "")).lower() in {"1", "true", "yes", "on"}
 
     if needs_api_key(provider) and not api_key:
         return jsonify({"error": f"{provider_label(provider)} 需要 API Key。"}), 400
 
+    config = AdvancedSeoConfig(
+        provider=provider,
+        base_url=base_url,
+        model=model or "pending",
+        api_key=api_key,
+    )
+
     try:
-        models = list_models_for_provider(
-            AdvancedSeoConfig(
-                provider=provider,
-                base_url=base_url,
-                model=model or "pending",
-                api_key=api_key,
-            )
-        )
+        model_options = list_model_options_for_provider(config)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 400
 
+    models = extract_model_ids(model_options)
     if not models:
         return jsonify({"error": "已連線成功，但目前讀不到可用模型。請先確認服務端已載入模型。"}), 400
 
-    selected_model = model if model in models else models[0]
+    selected_model = pick_default_model(provider, model, model_options)
+    model_message = ""
+    loaded_model = ""
+
+    if activate_model and selected_model:
+        try:
+            applied = activate_provider_model(
+                AdvancedSeoConfig(
+                    provider=provider,
+                    base_url=base_url,
+                    model=selected_model,
+                    api_key=api_key,
+                )
+            )
+            model_message = str(applied.get("message") or "")
+            loaded_model = str(applied.get("loaded_model") or selected_model)
+            if provider == "lmstudio":
+                refreshed_options = list_model_options_for_provider(
+                    AdvancedSeoConfig(
+                        provider=provider,
+                        base_url=base_url,
+                        model=selected_model,
+                        api_key=api_key,
+                    )
+                )
+                if refreshed_options:
+                    model_options = refreshed_options
+                    models = extract_model_ids(model_options)
+                    selected_model = pick_default_model(provider, selected_model, model_options)
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 400
+
     return jsonify(
         {
             "ok": True,
@@ -2480,6 +2785,11 @@ def llm_connect():
             "base_url": base_url,
             "selected_model": selected_model,
             "models": models,
+            "model_options": model_options,
+            "model_message": model_message,
+            "loaded_model": loaded_model or selected_model,
+            "supports_model_switch": True,
+            "auto_load_on_select": provider == "lmstudio",
             "advanced_seo_filename": ADVANCED_SEO_FILENAME,
         }
     )
@@ -3089,34 +3399,18 @@ def request_provider_text(
         return strip_code_fences(content)
 
     if config.provider in OPENAI_STYLE_PROVIDERS:
-        headers = {"Content-Type": "application/json"}
-        if config.api_key:
-            headers["Authorization"] = f"Bearer {config.api_key}"
-        payload = {
-            "model": config.model,
-            "messages": [
-                {"role": "system", "content": system_text},
-                {"role": "user", "content": user_text},
-            ],
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }
-        timeout_seconds = 300 if config.provider == "lmstudio" else 180
-        response = requests.post(
-            f"{config.base_url}/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=timeout_seconds,
+        if config.provider == "lmstudio":
+            timeout_seconds = 480 if max_tokens >= 1000 else 300
+        else:
+            timeout_seconds = 180
+        return request_openai_style_text(
+            config,
+            system_text,
+            user_text,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            timeout_seconds=timeout_seconds,
         )
-        if not response.ok:
-            raise RuntimeError(f"{provider_label(config.provider)} 生成失敗：{response_error_message(response)}")
-        data = response.json()
-        choices = as_iterable_list(data.get("choices"))
-        message = choices[0].get("message") if choices and isinstance(choices[0], dict) else {}
-        content = content_blocks_to_text(message.get("content")) if isinstance(message, dict) else ""
-        if not content:
-            raise RuntimeError(f"{provider_label(config.provider)} 沒有回傳可用內容。")
-        return strip_code_fences(content)
 
     if config.provider in GEMINI_STYLE_PROVIDERS:
         model_name = config.model if str(config.model).startswith("models/") else f"models/{config.model}"
@@ -3421,6 +3715,9 @@ def generate_advanced_seo_text(
     source_url: str | None,
     config: AdvancedSeoConfig,
 ) -> str:
+    if config.provider == "lmstudio":
+        activate_provider_model(config)
+
     cleaned_transcript = clean_transcript_text(transcript_text)
     context_reference = None
     if len(cleaned_transcript) > LLM_LONG_CONTEXT_THRESHOLD:
@@ -3431,13 +3728,25 @@ def generate_advanced_seo_text(
             config,
         )
 
-    system_prompt, user_prompt = build_advanced_seo_prompt(
-        transcript_text=cleaned_transcript,
-        segments=segments,
-        base_title=base_title,
-        source_url=source_url,
-        context_reference=context_reference,
-    )
+    use_compact_local_prompt = config.provider in {"lmstudio", "ollama"}
+    if use_compact_local_prompt:
+        system_prompt, user_prompt = build_compact_local_advanced_seo_prompt(
+            transcript_text=cleaned_transcript,
+            segments=segments,
+            base_title=base_title,
+            source_url=source_url,
+            context_reference=context_reference,
+        )
+        generation_max_tokens = 1200
+    else:
+        system_prompt, user_prompt = build_advanced_seo_prompt(
+            transcript_text=cleaned_transcript,
+            segments=segments,
+            base_title=base_title,
+            source_url=source_url,
+            context_reference=context_reference,
+        )
+        generation_max_tokens = 1800
     baseline_draft = build_seo_text(
         transcript_text=cleaned_transcript,
         segments=segments,
@@ -3445,15 +3754,19 @@ def generate_advanced_seo_text(
         source_url=source_url,
     )
     expected_chapters = len(build_chapters(segments, base_title))
+    fallback_hashtag_line = build_hashtag_line(top_keywords(cleaned_transcript, base_title, limit=10), limit=10)
+    fallback_chapter_lines = [f"{timestamp} {title}" for timestamp, title in build_chapters(segments, base_title)]
 
     content = normalize_advanced_seo_content(
         request_provider_text(
             config,
             system_prompt,
             user_prompt,
-            max_tokens=1800,
+            max_tokens=generation_max_tokens,
             temperature=0.3,
-        )
+        ),
+        fallback_hashtag_line=fallback_hashtag_line,
+        fallback_chapter_lines=fallback_chapter_lines,
     )
     quality_issues = advanced_seo_quality_issues(content, baseline_draft, expected_chapters)
     if quality_issues:
@@ -3467,9 +3780,26 @@ def generate_advanced_seo_text(
                 config,
                 retry_system_prompt,
                 retry_user_prompt,
-                max_tokens=1800,
+                max_tokens=generation_max_tokens,
                 temperature=0.25,
-            )
+            ),
+            fallback_hashtag_line=fallback_hashtag_line,
+            fallback_chapter_lines=fallback_chapter_lines,
+        )
+
+    final_issues = advanced_seo_quality_issues(content, baseline_draft, expected_chapters)
+    if final_issues and use_compact_local_prompt:
+        format_system_prompt, format_user_prompt = build_advanced_seo_formatter_prompt(content)
+        content = normalize_advanced_seo_content(
+            request_provider_text(
+                config,
+                format_system_prompt,
+                format_user_prompt,
+                max_tokens=min(generation_max_tokens, 900),
+                temperature=0.15,
+            ),
+            fallback_hashtag_line=fallback_hashtag_line,
+            fallback_chapter_lines=fallback_chapter_lines,
         )
 
     if source_url and "影片來源：" not in content:
@@ -3477,7 +3807,12 @@ def generate_advanced_seo_text(
     return content + "\n"
 
 
-def normalize_advanced_seo_content(content: str) -> str:
+def normalize_advanced_seo_content(
+    content: str,
+    *,
+    fallback_hashtag_line: str = "",
+    fallback_chapter_lines: list[str] | None = None,
+) -> str:
     cleaned = prune_extra_seo_sections(content)
     sections = split_structured_seo_sections(cleaned)
     if not sections:
@@ -3517,6 +3852,8 @@ def normalize_advanced_seo_content(content: str) -> str:
         if tag not in unique_tags:
             unique_tags.append(tag)
     hashtag_line = ",".join(unique_tags)
+    if not hashtag_line:
+        hashtag_line = normalize_text(fallback_hashtag_line) or "#Whisper,#字幕轉錄,#YouTube"
 
     chapter_lines: list[str] = []
     for raw_line in sections.get("四", "").splitlines():
@@ -3527,6 +3864,8 @@ def normalize_advanced_seo_content(content: str) -> str:
         body = re.sub(r"^(這段在說明什麼[:：]\s*|本段在說明[:：]\s*|這段主要在說[:：]\s*)", "", body).strip()
         if body:
             chapter_lines.append(f"{timestamp} {body}")
+    if not chapter_lines:
+        chapter_lines = [line.strip() for line in (fallback_chapter_lines or []) if line and line.strip()]
 
     result_lines = [
         "一、建議標題 3 個",

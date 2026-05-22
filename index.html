@@ -841,7 +841,7 @@
 
             <div class="panel-box">
               <h3>AI 進階 SEO（可選）</h3>
-              <p>基礎 <code>SEO.txt</code> 不需要外部模型；若要產生整理更完整的 <code>進階SEO.txt</code>，請先連通本地或雲端模型服務，再選擇模型後開始轉錄。API Key 只保留在這次瀏覽器工作階段，不會寫進專案檔案。</p>
+              <p>基礎 <code>SEO.txt</code> 不需要外部模型；若要產生整理更完整的 <code>進階SEO.txt</code>，請先連通本地或雲端模型服務，再選擇模型後開始轉錄。若使用 LM Studio，連線成功後可直接從下拉選單切換模型，系統會自動請 LM Studio 載入。API Key 只保留在這次瀏覽器工作階段，不會寫進專案檔案。</p>
 
               <div class="ai-grid">
                 <div class="field-stack" style="margin-top:0">
@@ -1118,7 +1118,10 @@
         ? `請輸入 ${meta.api_key_label || "API Key"}`
         : "本地服務通常可留空";
 
-      advancedProviderHelp.textContent = `${meta.description} ${meta.note} 連通成功後才能選模型，並在轉錄完成後額外輸出進階SEO.txt。`;
+      const switchNote = meta.auto_load_on_select
+        ? "連線成功後可直接改用下拉選單切換模型，LM Studio 會自動切換並載入。"
+        : "連線成功後才能選模型，並在轉錄完成後額外輸出進階SEO.txt。";
+      advancedProviderHelp.textContent = `${meta.description} ${meta.note} ${switchNote}`;
       saveAdvancedNonSecretSettings();
     }
 
@@ -1149,14 +1152,34 @@
     }
 
     function renderAdvancedModels(models, selectedModel) {
+      const options = (models || []).map(item => {
+        if (typeof item === "string") {
+          return { value: item, label: item };
+        }
+        return {
+          value: item.value || item.id || "",
+          label: item.label || item.display_name || item.value || item.id || "",
+          loaded: Boolean(item.loaded)
+        };
+      }).filter(item => item.value);
       const current = selectedModel || "";
-      advancedModelSelect.innerHTML = models
-        .map(model => `<option value="${escapeHtml(model)}"${model === current ? " selected" : ""}>${escapeHtml(model)}</option>`)
+      advancedModelSelect.innerHTML = options
+        .map(item => `<option value="${escapeHtml(item.value)}"${item.value === current ? " selected" : ""}>${escapeHtml(item.label)}</option>`)
         .join("");
-      advancedModelSelect.disabled = models.length === 0;
-      if (!models.length) {
+      advancedModelSelect.disabled = options.length === 0;
+      if (!options.length) {
         resetAdvancedModelList("這個服務目前沒有可用模型");
       }
+    }
+
+    function buildAdvancedConnectPayload(activateModel = false) {
+      return {
+        provider: advancedProviderSelect.value,
+        base_url: advancedBaseUrlInput.value.trim(),
+        api_key: advancedApiKeyInput.value.trim(),
+        model: advancedModelSelect.value || "",
+        activate_model: activateModel
+      };
     }
 
     async function connectAdvancedProvider() {
@@ -1166,12 +1189,7 @@
         return;
       }
 
-      const payload = {
-        provider: advancedProviderSelect.value,
-        base_url: advancedBaseUrlInput.value.trim(),
-        api_key: advancedApiKeyInput.value.trim(),
-        model: advancedModelSelect.value || ""
-      };
+      const payload = buildAdvancedConnectPayload(false);
 
       setAdvancedConnectionState("連線中，正在讀取模型清單…", "warn");
       advancedConnectBtn.disabled = true;
@@ -1189,20 +1207,72 @@
 
         const savedModel = localStorage.getItem(providerStorageKey(payload.provider, "model")) || "";
         const selectedModel = (data.models || []).includes(savedModel) ? savedModel : (data.selected_model || "");
-        renderAdvancedModels(data.models || [], selectedModel);
+        renderAdvancedModels(data.model_options || data.models || [], selectedModel);
         if (selectedModel) {
           advancedModelSelect.value = selectedModel;
         }
         advancedBaseUrlInput.value = data.base_url || advancedBaseUrlInput.value.trim();
         state.advancedSeoConnected = true;
         saveAdvancedNonSecretSettings();
-        setAdvancedConnectionState(`已連線：${data.provider_label} / ${selectedModel}`, "ok");
+        if (data.model_message) {
+          setAdvancedConnectionState(data.model_message, "ok");
+        } else if (meta.auto_load_on_select) {
+          setAdvancedConnectionState(`已連線：${data.provider_label}。現在可直接切換模型並自動載入。`, "ok");
+        } else {
+          setAdvancedConnectionState(`已連線：${data.provider_label} / ${selectedModel}`, "ok");
+        }
       } catch (error) {
         state.advancedSeoConnected = false;
         resetAdvancedModelList("連線失敗，請修正後重試");
         setAdvancedConnectionState(`連線失敗：${error.message}`, "err");
       } finally {
         advancedConnectBtn.disabled = false;
+      }
+    }
+
+    async function applyAdvancedModelSelection() {
+      const meta = getSelectedProviderMeta();
+      if (!meta || !advancedModelSelect.value) {
+        return;
+      }
+
+      saveAdvancedNonSecretSettings();
+      if (!state.advancedSeoConnected) {
+        return;
+      }
+
+      if (!meta.auto_load_on_select) {
+        setAdvancedConnectionState(`已切換為 ${meta.label} / ${advancedModelSelect.value}`, "ok");
+        return;
+      }
+
+      const payload = buildAdvancedConnectPayload(true);
+      setAdvancedConnectionState(`LM Studio 正在切換並載入 ${advancedModelSelect.value}…`, "warn");
+      advancedConnectBtn.disabled = true;
+      advancedModelSelect.disabled = true;
+
+      try {
+        const response = await fetch("/llm/connect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok || data.error) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        const selectedModel = data.selected_model || advancedModelSelect.value;
+        renderAdvancedModels(data.model_options || data.models || [], selectedModel);
+        advancedModelSelect.value = selectedModel;
+        state.advancedSeoConnected = true;
+        saveAdvancedNonSecretSettings();
+        setAdvancedConnectionState(data.model_message || `LM Studio 已切換並載入 ${selectedModel}`, "ok");
+      } catch (error) {
+        setAdvancedConnectionState(`切換模型失敗：${error.message}`, "err");
+      } finally {
+        advancedConnectBtn.disabled = false;
+        advancedModelSelect.disabled = false;
       }
     }
 
@@ -1735,7 +1805,7 @@
     });
 
     advancedModelSelect.addEventListener("change", () => {
-      saveAdvancedNonSecretSettings();
+      applyAdvancedModelSelection();
     });
 
     advancedConnectBtn.addEventListener("click", connectAdvancedProvider);
