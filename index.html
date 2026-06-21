@@ -1415,13 +1415,59 @@
       statTitle.textContent = data.original_title || "未提供";
       statFilename.textContent = data.filename || "-";
       srtPreview.textContent = previewLines;
-      downloadAdvancedSeoBtn.disabled = !advancedAvailable;
+      downloadAdvancedSeoBtn.disabled = false;
       advancedResultNote.textContent = advancedAvailable
         ? `這次已使用 ${advancedProvider}${advancedModel ? ` / ${advancedModel}` : ""} 生成進階SEO.txt。`
         : (advancedRequested
           ? `這次有啟用進階 SEO，但模型整理失敗：${advancedError || "請檢查 API、模型名稱或本地模型服務狀態。"}`
           : "這次只產生基礎 SEO.txt。若要拿到進階SEO.txt，請先在左側 AI 進階 SEO 區塊完成連線與選模，然後重新轉錄。");
       showPanel("result");
+    }
+
+    function filenameFromDisposition(disposition, fallback) {
+      const header = disposition || "";
+      const utf8Match = header.match(/filename\*=UTF-8''([^;]+)/i);
+      if (utf8Match) {
+        try {
+          return decodeURIComponent(utf8Match[1]);
+        } catch (_error) {
+          return utf8Match[1];
+        }
+      }
+
+      const plainMatch = header.match(/filename="?([^";]+)"?/i);
+      return plainMatch ? plainMatch[1] : fallback;
+    }
+
+    async function downloadOutput(kind, fallbackName) {
+      if (!state.currentJobId) {
+        alert("目前找不到完成的轉錄工作，請重新轉錄一次。");
+        return;
+      }
+
+      try {
+        const response = await fetch(`/download/${state.currentJobId}/${kind}`);
+        if (!response.ok) {
+          const message = await response.text();
+          throw new Error(message || `下載失敗（HTTP ${response.status}）`);
+        }
+
+        const blob = await response.blob();
+        const filename = filenameFromDisposition(
+          response.headers.get("Content-Disposition"),
+          fallbackName || "Whisper輸出.txt"
+        );
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        alert(`下載失敗：${error.message}`);
+      }
     }
 
     function startPolling() {
@@ -1824,23 +1870,23 @@
     });
 
     document.getElementById("download-srt-btn").addEventListener("click", () => {
-      if (!state.currentJobId) return;
-      window.location.href = `/download/${state.currentJobId}/srt`;
+      downloadOutput("srt", state.currentResult?.filename || "字幕.srt");
     });
 
     document.getElementById("download-txt-btn").addEventListener("click", () => {
-      if (!state.currentJobId) return;
-      window.location.href = `/download/${state.currentJobId}/txt`;
+      downloadOutput("txt", state.currentResult?.text_filename || "逐字稿.txt");
     });
 
     document.getElementById("download-seo-btn").addEventListener("click", () => {
-      if (!state.currentJobId) return;
-      window.location.href = `/download/${state.currentJobId}/seo`;
+      downloadOutput("seo", state.currentResult?.seo_filename || "SEO.txt");
     });
 
     downloadAdvancedSeoBtn.addEventListener("click", () => {
-      if (!state.currentJobId || downloadAdvancedSeoBtn.disabled) return;
-      window.location.href = `/download/${state.currentJobId}/advanced-seo`;
+      if (!state.currentResult?.advanced_seo_available) {
+        alert("這次沒有產生進階SEO.txt。請先連線模型並重新轉錄，或查看下方提示。");
+        return;
+      }
+      downloadOutput("advanced-seo", state.currentResult?.advanced_seo_filename || "進階SEO.txt");
     });
 
     document.getElementById("reset-btn").addEventListener("click", resetAll);
