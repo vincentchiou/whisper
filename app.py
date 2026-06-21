@@ -518,6 +518,9 @@ def silero_vad_installed() -> bool:
         return silero_vad is not None
     except ImportError:
         return False
+    except Exception as exc:
+        print(f"[Silero VAD] 載入失敗：{exc}")
+        return False
 
 
 def get_silero_vad_model():
@@ -639,6 +642,21 @@ def filter_segments_with_vad(
         if overlap >= 0.12 and overlap_ratio >= 0.2:
             filtered.append(segment)
     return filtered
+
+
+def apply_vad_filter_with_fallback(
+    segments: list[dict[str, Any]],
+    speech_windows: list[tuple[float, float]],
+) -> list[dict[str, Any]]:
+    if not segments or not speech_windows:
+        return segments
+
+    filtered = filter_segments_with_vad(segments, speech_windows)
+    if filtered:
+        return filtered
+
+    print("[Silero VAD] 過濾後沒有字幕片段，保留 Whisper 原始結果避免誤判。")
+    return segments
 
 
 def fmt_time(seconds: float) -> str:
@@ -2251,16 +2269,10 @@ def transcribe_media_in_chunks(model: Any, file_path: str) -> list[dict[str, Any
     chunks, temp_dir = split_media_for_transcription(file_path)
     combined_segments: list[dict[str, Any]] = []
     empty_chunk_count = 0
-    vad_skip_count = 0
 
     try:
         for chunk_path, offset in chunks:
-            chunk_duration = probe_media_duration(chunk_path) or 0.0
             speech_windows = detect_speech_windows(chunk_path)
-            if silero_vad_installed() and not has_enough_speech(speech_windows, chunk_duration):
-                vad_skip_count += 1
-                empty_chunk_count += 1
-                continue
 
             result = model.transcribe(
                 chunk_path,
@@ -2271,7 +2283,7 @@ def transcribe_media_in_chunks(model: Any, file_path: str) -> list[dict[str, Any
             )
             chunk_segments = as_iterable_list(result.get("segments"))
             if speech_windows:
-                chunk_segments = filter_segments_with_vad(chunk_segments, speech_windows)
+                chunk_segments = apply_vad_filter_with_fallback(chunk_segments, speech_windows)
             if not chunk_segments:
                 empty_chunk_count += 1
                 continue
@@ -2298,8 +2310,6 @@ def transcribe_media_in_chunks(model: Any, file_path: str) -> list[dict[str, Any
 
     if not combined_segments:
         if empty_chunk_count:
-            if silero_vad_installed() and vad_skip_count:
-                raise RuntimeError("長影音分段轉錄後，Silero VAD 判定大多數片段沒有正常人聲，因此沒有可用字幕內容。請確認影片聲音是否清楚，或改用較短片段再試一次。")
             raise RuntimeError("長影音分段轉錄後沒有辨識到可用語音內容，請確認影片是否有清楚人聲，或改用較短片段再試一次。")
         raise RuntimeError("長影音分段轉錄失敗，沒有取得任何字幕片段。")
 
@@ -2450,19 +2460,16 @@ def run_whisper(job_id: str, file_path: str, seg_mode: str) -> None:
             segments = transcribe_media_in_chunks(model, file_path)
         else:
             speech_windows = detect_speech_windows(file_path)
-            if silero_vad_installed() and not has_enough_speech(speech_windows, duration):
-                segments = []
-            else:
-                result = model.transcribe(
-                    file_path,
-                    language=None,
-                    task="transcribe",
-                    fp16=USE_FP16,
-                    verbose=False,
-                )
-                segments = as_iterable_list(result.get("segments"))
-                if speech_windows:
-                    segments = filter_segments_with_vad(segments, speech_windows)
+            result = model.transcribe(
+                file_path,
+                language=None,
+                task="transcribe",
+                fp16=USE_FP16,
+                verbose=False,
+            )
+            segments = as_iterable_list(result.get("segments"))
+            if speech_windows:
+                segments = apply_vad_filter_with_fallback(segments, speech_windows)
 
         if not segments:
             raise RuntimeError("這段音訊沒有辨識到可用語音內容，請確認檔案是否有聲音、語言是否清楚，或改用較短片段再試一次。")
@@ -2599,21 +2606,28 @@ def build_env_check() -> dict[str, Any]:
     else:
         results["requests"] = {"ok": False, "label": "requests", "version": None, "note": "尚未安裝"}
 
-    if silero_vad_installed():
+    try:
         import silero_vad  # type: ignore
-
-        results["silero_vad"] = {
-            "ok": True,
-            "label": "silero-vad",
-            "version": getattr(silero_vad, "__version__", ""),
-            "note": "已啟用 Silero VAD，可過濾無語音或異常片段。",
-        }
-    else:
+    except ImportError:
         results["silero_vad"] = {
             "ok": False,
             "label": "silero-vad",
             "version": None,
             "note": "尚未安裝，VAD 濾波器目前不會生效。",
+        }
+    except Exception as exc:
+        results["silero_vad"] = {
+            "ok": False,
+            "label": "silero-vad",
+            "version": None,
+            "note": f"載入失敗，請重新執行 start.bat 修復 PyTorch / torchaudio：{exc}",
+        }
+    else:
+        results["silero_vad"] = {
+            "ok": True,
+            "label": "silero-vad",
+            "version": getattr(silero_vad, "__version__", ""),
+            "note": "已啟用 Silero VAD，可過濾無語音或異常片段。",
         }
 
     torch_info = inspect_torch_cuda()

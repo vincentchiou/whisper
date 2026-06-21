@@ -128,6 +128,25 @@ echo [DONE] Packages installed!
 echo.
 
 :check_gpu
+:: Make sure torch, torchvision and torchaudio come from the same PyTorch wheel family.
+call :pytorch_stack_compatible "%PYTHON_EXE%"
+if not errorlevel 1 goto check_cuda
+
+where nvidia-smi >nul 2>&1
+if errorlevel 1 (
+    echo [WARN] PyTorch audio packages are incompatible.
+    echo [WARN] Reinstalling CPU-compatible PyTorch packages...
+    "%PYTHON_EXE%" -m pip install torch torchvision torchaudio --upgrade --force-reinstall --progress-bar off
+    goto check_cuda
+)
+
+call :choose_cuda_index "%PYTHON_EXE%"
+echo [GPU] PyTorch / torchaudio version mismatch detected.
+echo [GPU] Reinstalling matching PyTorch packages (%CUDA_LABEL%)...
+echo.
+"%PYTHON_EXE%" -m pip install torch torchvision torchaudio --index-url %CUDA_INDEX% --upgrade --force-reinstall --no-deps --progress-bar off
+
+:check_cuda
 :: Check if CUDA is really usable. RTX 50 / Blackwell needs CUDA 12.8 PyTorch wheels.
 call :cuda_usable "%PYTHON_EXE%"
 if not errorlevel 1 (
@@ -141,20 +160,13 @@ if errorlevel 1 (
     goto start_server
 )
 
-set CUDA_INDEX=https://download.pytorch.org/whl/cu121
-set CUDA_LABEL=CUDA 12.1
-"%PYTHON_EXE%" -c "import re, subprocess; out=subprocess.check_output(['nvidia-smi','--query-gpu=name','--format=csv,noheader'], text=True, stderr=subprocess.STDOUT); raise SystemExit(0 if re.search(r'RTX\s*50|RTX\s*5\d\d\d|5060|5070|5080|5090', out, re.I) else 1)" >nul 2>&1
-if not errorlevel 1 (
-    set CUDA_INDEX=https://download.pytorch.org/whl/cu128
-    set CUDA_LABEL=CUDA 12.8
-    echo [GPU] RTX 50 series detected, using PyTorch CUDA 12.8 wheels.
-)
+call :choose_cuda_index "%PYTHON_EXE%"
 
 :: CUDA not available or current PyTorch is incompatible - reinstall GPU PyTorch.
-echo [GPU] Installing GPU version of PyTorch (%CUDA_LABEL%)...
+echo [GPU] Installing GPU version of PyTorch packages (%CUDA_LABEL%)...
 echo [GPU] This may take a while (~2 GB), please wait...
 echo.
-"%PYTHON_EXE%" -m pip install torch --index-url %CUDA_INDEX% --upgrade --force-reinstall --progress-bar off
+"%PYTHON_EXE%" -m pip install torch torchvision torchaudio --index-url %CUDA_INDEX% --upgrade --force-reinstall --no-deps --progress-bar off
 if errorlevel 1 (
     echo [WARN] GPU PyTorch install failed, using CPU mode.
 ) else (
@@ -232,6 +244,21 @@ exit /b %errorlevel%
 set "LAST_RUN_EXIT=%errorlevel%"
 if "%LAST_RUN_EXIT%"=="0" exit /b 0
 exit /b 1
+
+:choose_cuda_index
+set CUDA_INDEX=https://download.pytorch.org/whl/cu121
+set CUDA_LABEL=CUDA 12.1
+%* -c "import re, subprocess; out=subprocess.check_output(['nvidia-smi','--query-gpu=name','--format=csv,noheader'], text=True, stderr=subprocess.STDOUT); raise SystemExit(0 if re.search(r'RTX\s*50|RTX\s*5\d\d\d|5060|5070|5080|5090', out, re.I) else 1)" >nul 2>&1
+if not errorlevel 1 (
+    set CUDA_INDEX=https://download.pytorch.org/whl/cu128
+    set CUDA_LABEL=CUDA 12.8
+    echo [GPU] RTX 50 series detected, using PyTorch CUDA 12.8 wheels.
+)
+exit /b 0
+
+:pytorch_stack_compatible
+%* -c "import re, sys; import torch; import torchaudio; tv=getattr(torch,'__version__',''); av=getattr(torchaudio,'__version__',''); base=lambda v: re.split(r'[+]', v)[0]; tag=lambda v: (v.split('+',1)[1] if '+' in v else 'cpu'); sys.exit(0 if base(tv).split('.')[:2] == base(av).split('.')[:2] and tag(tv) == tag(av) else 1)" >nul 2>&1
+exit /b %errorlevel%
 
 :cuda_usable
 %* -c "import torch; ok=torch.cuda.is_available(); cc=torch.cuda.get_device_capability(0) if ok else tuple([0,0]); cv=tuple([int(x) for x in (torch.version.cuda or '0.0').split('.')[:2]]); ok=ok and not (cc >= tuple([12,0]) and cv < tuple([12,8])); torch.empty(1, device='cuda') if ok else None; torch.cuda.synchronize() if ok else None; sys_exit=__import__('sys').exit; sys_exit(0 if ok else 1)" >nul 2>&1
