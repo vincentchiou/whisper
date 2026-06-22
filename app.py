@@ -38,6 +38,7 @@ PYTORCH_PIP_PACKAGES = {"openai-whisper", "whisper", "torch", "torchvision", "to
 DEFAULT_INSTALL_PACKAGES = ["flask", "openai-whisper", "yt-dlp", "requests", "silero-vad"]
 CUDA_INDEX_CU121 = "https://download.pytorch.org/whl/cu121"
 CUDA_INDEX_CU128 = "https://download.pytorch.org/whl/cu128"
+WHISPER_MODEL_NAME = "medium"
 ADVANCED_SEO_FILENAME = "進階SEO.txt"
 DOWNLOAD_FILENAME_LIMIT = 20
 OPENAI_STYLE_PROVIDERS = {"openai", "groq", "mistral", "lmstudio"}
@@ -505,8 +506,8 @@ def get_whisper_model():
         if _whisper_model is None:
             import whisper
 
-            print(f"[Whisper] 載入 medium 模型（device={DEVICE}）...")
-            _whisper_model = whisper.load_model("medium", device=DEVICE)
+            print(f"[Whisper] 載入 {WHISPER_MODEL_NAME} 模型（device={DEVICE}）...")
+            _whisper_model = whisper.load_model(WHISPER_MODEL_NAME, device=DEVICE)
             print("[Whisper] 模型載入完成。")
     return _whisper_model
 
@@ -1243,6 +1244,48 @@ def build_seo_text(
 
     if source_url:
         lines.extend(["", f"原始影片網址：{source_url}"])
+
+    return "\n".join(lines).strip() + "\n"
+
+
+def build_fallback_advanced_seo_text(
+    transcript_text: str,
+    segments: list[dict[str, Any]],
+    base_title: str,
+    source_url: str | None = None,
+    reason: str | None = None,
+) -> str:
+    cleaned_text = clean_transcript_text(transcript_text)
+    keywords = top_keywords(cleaned_text, base_title, limit=12)
+    title_suggestions = build_title_suggestions(base_title, keywords)
+    summary_paragraph = build_summary_paragraph(cleaned_text, base_title, 300)
+    summary_bullets = build_summary_and_hook_bullets(cleaned_text, base_title)
+    hashtag_line = build_hashtag_line(keywords, limit=10)
+    chapters = build_chapters(segments, base_title)
+
+    lines = [
+        "進階SEO.txt",
+        "====================",
+        "",
+        "一、建議標題 3 個",
+        *[f"{index}. {title}" for index, title in enumerate(title_suggestions, start=1)],
+        "",
+        "二、內容摘要",
+        summary_paragraph,
+        "",
+        *summary_bullets,
+        "",
+        "三、關鍵字與標籤",
+        hashtag_line,
+        "",
+        "四、章節目錄",
+        *[f"{timestamp} {title}" for timestamp, title in chapters],
+    ]
+
+    if source_url:
+        lines.extend(["", f"影片來源：{source_url}"])
+    if reason:
+        lines.extend(["", f"產生備註：本地模型未回傳可用內容，已改用程式規則產生可下載草稿。原因：{reason}"])
 
     return "\n".join(lines).strip() + "\n"
 
@@ -3771,14 +3814,28 @@ def generate_advanced_seo_text(
     fallback_hashtag_line = build_hashtag_line(top_keywords(cleaned_transcript, base_title, limit=10), limit=10)
     fallback_chapter_lines = [f"{timestamp} {title}" for timestamp, title in build_chapters(segments, base_title)]
 
-    content = normalize_advanced_seo_content(
-        request_provider_text(
+    try:
+        raw_content = request_provider_text(
             config,
             system_prompt,
             user_prompt,
             max_tokens=generation_max_tokens,
             temperature=0.3,
-        ),
+        )
+    except Exception as exc:
+        if config.provider in {"lmstudio", "ollama"}:
+            print(f"[進階SEO] 本地模型未回傳可用內容，改用規則式草稿：{exc}")
+            return build_fallback_advanced_seo_text(
+                transcript_text=cleaned_transcript,
+                segments=segments,
+                base_title=base_title,
+                source_url=source_url,
+                reason=str(exc),
+            )
+        raise
+
+    content = normalize_advanced_seo_content(
+        raw_content,
         fallback_hashtag_line=fallback_hashtag_line,
         fallback_chapter_lines=fallback_chapter_lines,
     )
@@ -3789,14 +3846,27 @@ def generate_advanced_seo_text(
             content,
             quality_issues,
         )
-        content = normalize_advanced_seo_content(
-            request_provider_text(
+        try:
+            retry_content = request_provider_text(
                 config,
                 retry_system_prompt,
                 retry_user_prompt,
                 max_tokens=generation_max_tokens,
                 temperature=0.25,
-            ),
+            )
+        except Exception as exc:
+            if config.provider in {"lmstudio", "ollama"}:
+                print(f"[進階SEO] 本地模型重試失敗，改用規則式草稿：{exc}")
+                return build_fallback_advanced_seo_text(
+                    transcript_text=cleaned_transcript,
+                    segments=segments,
+                    base_title=base_title,
+                    source_url=source_url,
+                    reason=str(exc),
+                )
+            raise
+        content = normalize_advanced_seo_content(
+            retry_content,
             fallback_hashtag_line=fallback_hashtag_line,
             fallback_chapter_lines=fallback_chapter_lines,
         )
@@ -3804,14 +3874,19 @@ def generate_advanced_seo_text(
     final_issues = advanced_seo_quality_issues(content, baseline_draft, expected_chapters)
     if final_issues and use_compact_local_prompt:
         format_system_prompt, format_user_prompt = build_advanced_seo_formatter_prompt(content)
-        content = normalize_advanced_seo_content(
-            request_provider_text(
+        try:
+            formatted_content = request_provider_text(
                 config,
                 format_system_prompt,
                 format_user_prompt,
                 max_tokens=min(generation_max_tokens, 900),
                 temperature=0.15,
-            ),
+            )
+        except Exception as exc:
+            print(f"[進階SEO] 本地模型格式化失敗，保留目前內容：{exc}")
+            formatted_content = content
+        content = normalize_advanced_seo_content(
+            formatted_content,
             fallback_hashtag_line=fallback_hashtag_line,
             fallback_chapter_lines=fallback_chapter_lines,
         )
