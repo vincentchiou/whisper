@@ -18,9 +18,13 @@ from typing import Any
 
 from flask import Flask, jsonify, request, send_file
 
+REQUESTS_IMPORT_ERROR: Exception | None = None
 try:
     import requests
 except ImportError:
+    requests = None
+except Exception as exc:
+    REQUESTS_IMPORT_ERROR = exc
     requests = None
 
 
@@ -463,6 +467,9 @@ def inspect_torch_cuda(test_tensor: bool = True) -> dict[str, Any]:
         import torch
     except ImportError:
         info["cuda_issue"] = "尚未安裝 PyTorch。"
+        return info
+    except Exception as exc:
+        info["cuda_issue"] = "PyTorch 載入失敗，請重新執行 start.bat 或重建 .venv：" + str(exc)
         return info
 
     info["torch_installed"] = True
@@ -1036,83 +1043,8 @@ def shorten_sentence(text: str, max_chars: int = 72) -> str:
     return polish_traditional_punctuation(cleaned[: max_chars - 1].rstrip("，。！？,.!?；;:： ") + "…")
 
 
-def build_chapter_description(text: str, fallback: str) -> str:
-    cleaned = clean_transcript_text(text)
-    keywords = top_keywords(cleaned, "", limit=4)
-    chinese_keywords = [item for item in keywords if re.search(r"[\u4e00-\u9fff]", item)]
-    english_keywords = [item for item in keywords if re.search(r"[A-Za-z]", item)]
-    sentences = sentence_split(cleaned)
-
-    if len(chinese_keywords) >= 2:
-        lead = f"本段聚焦{chinese_keywords[0]}與{chinese_keywords[1]}，說明相關概念與操作重點。"
-    elif len(chinese_keywords) == 1 and english_keywords:
-        lead = f"本段聚焦{chinese_keywords[0]}與{english_keywords[0]}，整理實際應用與重點流程。"
-    elif len(english_keywords) >= 2:
-        lead = f"本段聚焦{english_keywords[0]}與{english_keywords[1]}，整理實作方向與關鍵觀念。"
-    elif keywords:
-        lead = f"本段重點圍繞{'、'.join(keywords[:2])}，整理核心內容與延伸重點。"
-    else:
-        lead = fallback
-
-    if sentences:
-        detail_source = shorten_sentence(sentences[0], 46).rstrip("，。！？,.!?；;:：…")
-        if re.search(r"[A-Za-z0-9\u4e00-\u9fff]", detail_source):
-            detail = f"重點提到{detail_source}。"
-            if detail not in lead:
-                combined = f"{lead}{detail}"
-            else:
-                combined = lead
-        else:
-            combined = lead
-    else:
-        combined = lead
-
-    return shorten_sentence(combined, 88) or fallback
 
 
-def build_chapters(segments: list[dict[str, Any]], seed_title: str) -> list[tuple[str, str]]:
-    if not segments:
-        return [("00:00", "影片開始")]
-
-    duration = float(segments[-1]["end"])
-    target_count = max(3, min(8, math.ceil(duration / 180) + 1))
-    chunk_size = max(1, math.ceil(len(segments) / target_count))
-    chapters: list[tuple[str, str]] = []
-
-    for index in range(0, len(segments), chunk_size):
-        chunk = segments[index:index + chunk_size]
-        if not chunk:
-            continue
-
-        start = float(chunk[0]["start"])
-        if chapters and start - _chapter_seconds(chapters[-1][0]) < 10:
-            continue
-
-        chunk_text = " ".join(str(item["text"]).strip() for item in chunk if str(item["text"]).strip())
-        title = build_chapter_description(chunk_text, f"本段整理重點段落 {len(chapters) + 1} 的核心內容。")
-        chapters.append((format_hms(start), title))
-
-    if not chapters or chapters[0][0] != "00:00":
-        chapters.insert(0, ("00:00", "影片開始"))
-
-    while len(chapters) < 3 and len(chapters) < len(segments):
-        candidate_index = min(len(segments) - 1, len(chapters) * max(1, len(segments) // 3))
-        start = float(segments[candidate_index]["start"])
-        title = build_chapter_description(
-            str(segments[candidate_index]["text"]),
-            f"本段整理章節 {len(chapters) + 1} 的核心概念與延伸重點。",
-        )
-        chapters.append((format_hms(start), title))
-
-    unique: list[tuple[str, str]] = []
-    seen_times: set[str] = set()
-    for timestamp, title in chapters:
-        if timestamp in seen_times:
-            continue
-        seen_times.add(timestamp)
-        unique.append((timestamp, title))
-
-    return unique[:8]
 
 
 def _chapter_seconds(timestamp: str) -> int:
@@ -1153,30 +1085,6 @@ def build_summary_and_hook(transcript_text: str) -> tuple[str, str]:
     return summary, hook
 
 
-def build_summary_and_hook_bullets(transcript_text: str, base_title: str = "") -> list[str]:
-    cleaned_text = clean_transcript_text(transcript_text)
-    keywords = top_keywords(cleaned_text, base_title, limit=5)
-    sentences = sentence_split(cleaned_text)
-
-    focus_keywords = "、".join(keywords[:3]) if keywords else normalize_text(base_title) or "影片主題"
-    point_one = shorten_sentence(f"核心重點：內容聚焦{focus_keywords}，適合快速掌握主題方向。", 92)
-
-    if sentences and re.search(r"[A-Za-z0-9\u4e00-\u9fff]", sentences[0]):
-        point_two = shorten_sentence(f"重點摘要：{sentences[0]}", 92)
-    else:
-        point_two = shorten_sentence("重點摘要：影片內容已整理出主要觀念與操作方向。", 92)
-
-    hook_keywords = "、".join(keywords[:2]) if keywords else normalize_text(base_title) or "核心主題"
-    point_three = shorten_sentence(f"觀看鉤子：想快速掌握{hook_keywords}與實際做法的人，可先看這份整理。", 92)
-
-    bullets = [point_one, point_two, point_three]
-    while sum(len(item) for item in bullets) > 270:
-        longest_index = max(range(len(bullets)), key=lambda idx: len(bullets[idx]))
-        bullets[longest_index] = shorten_sentence(bullets[longest_index], max(42, len(bullets[longest_index]) - 24))
-        if all(len(item) <= 42 for item in bullets):
-            break
-
-    return [f"- {item}" for item in bullets if item]
 
 
 def keyword_to_hashtag(keyword: str) -> str:
@@ -1213,39 +1121,6 @@ def build_title_suggestions(base_title: str, keywords: list[str]) -> list[str]:
     return unique
 
 
-def build_seo_text(
-    transcript_text: str,
-    segments: list[dict[str, Any]],
-    base_title: str,
-    source_url: str | None = None,
-) -> str:
-    keywords = top_keywords(transcript_text, base_title, limit=12)
-    title_suggestions = build_title_suggestions(base_title, keywords)
-    summary_bullets = build_summary_and_hook_bullets(transcript_text, base_title)
-    chapters = build_chapters(segments, base_title)
-    hashtag_line = build_hashtag_line(keywords, limit=10)
-
-    lines = [
-        "YouTube SEO 建議內容",
-        "====================",
-        "",
-        "一、建議標題（3個）",
-        *[f"{index}. {title}" for index, title in enumerate(title_suggestions, start=1)],
-        "",
-        "二、內容摘要與鉤子",
-        *summary_bullets,
-        "",
-        "三、關鍵字及標籤分析",
-        hashtag_line,
-        "",
-        "四、章節目錄",
-        *[f"{timestamp} {title}" for timestamp, title in chapters],
-    ]
-
-    if source_url:
-        lines.extend(["", f"原始影片網址：{source_url}"])
-
-    return "\n".join(lines).strip() + "\n"
 
 
 def build_fallback_advanced_seo_text(
@@ -1340,84 +1215,6 @@ def build_transcript_excerpt(transcript_text: str, max_chars: int = 4800) -> str
     return excerpt
 
 
-def build_advanced_seo_prompt(
-    transcript_text: str,
-    segments: list[dict[str, Any]],
-    base_title: str,
-    source_url: str | None = None,
-) -> tuple[str, str]:
-    keywords = top_keywords(transcript_text, base_title, limit=12)
-    chapters = build_chapters(segments, base_title)
-    context_chunks = chunk_segments_for_context(segments)
-    summary_bullets = build_summary_and_hook_bullets(transcript_text, base_title)
-    hashtag_line = build_hashtag_line(keywords, limit=10)
-
-    chapter_lines: list[str] = []
-    for index, chunk in enumerate(context_chunks[:8], start=1):
-        fallback = f"本段整理章節 {index} 的核心概念與延伸重點。"
-        summary = build_chapter_description(chunk["text"], fallback)
-        excerpt = chunk["text"][:220].rstrip()
-        if len(chunk["text"]) > 220:
-            excerpt += "…"
-        chapter_lines.append(
-            f"{format_hms(chunk['start'])} {summary}\n"
-            f"關鍵摘錄：{excerpt}"
-        )
-
-    chapter_seed = "\n\n".join(chapter_lines) if chapter_lines else "無章節素材"
-    transcript_excerpt = build_transcript_excerpt(transcript_text)
-    chapter_outline = "\n".join(f"{timestamp} {title}" for timestamp, title in chapters)
-    keyword_text = "、".join(keywords[:10]) if keywords else "Whisper、字幕轉錄、YouTube"
-    title_seed = normalize_text(base_title) or "未提供標題"
-
-    system_prompt = (
-        "你是資深的 YouTube SEO 內容編輯與繁體中文文案整理助手。"
-        "請根據轉錄內容輸出一份可直接存成純文字檔的進階 SEO 建議稿。"
-        "所有內容必須使用繁體中文，不要使用簡體字。"
-        "AI、品牌、人名與技術名詞請維持正確英文或既有中文，例如 OpenAI、ChatGPT、Whisper、YouTube、CUDA、NVIDIA、PyTorch、API、LLM、邱文盛。"
-        "不要捏造影片中沒有提到的具體事實；資訊不足時要保守描述。"
-        "不要輸出 Markdown 程式碼框，不要加上補充提醒、免責聲明或多餘寒暄。"
-        "請嚴格只輸出第一到第四段，不要輸出第五段、第六段或其他附錄。"
-    )
-
-    user_prompt = (
-        "請只輸出下列固定格式的純文字，段落標題名稱請保持一致：\n"
-        "進階 YouTube SEO 建議內容\n"
-        "========================\n"
-        "一、建議標題（3個）\n"
-        "1. ...\n"
-        "2. ...\n"
-        "3. ...\n\n"
-        "二、內容摘要與鉤子\n"
-        "- ...\n"
-        "- ...\n"
-        "- ...\n\n"
-        "三、關鍵字及標籤分析\n"
-        "#關鍵字,#關鍵字,#關鍵字\n\n"
-        "四、章節目錄\n"
-        "00:00 ...\n\n"
-        "整理規則：\n"
-        "- 標題要自然、可讀、可搜尋，不要三個都只換少數詞。\n"
-        "- 第二段請控制在 300 字內，並以條列式抓出核心重點與觀看鉤子。\n"
-        "- 第三段請只輸出關鍵字與標籤分析結果，直接用 #關鍵字,#關鍵字 的方式呈現，不要加額外解說。\n"
-        "- 章節目錄請沿用已提供的時間點，並把每段的重要概念整理成 1 到 2 句話說明，不要只放單字。\n"
-        "- 關鍵字與 Hashtags 要貼近轉錄內容，不要塞與影片無關的熱門詞。\n"
-        "- 如果影片主題包含 AI、模型、API、GPU、CUDA、Whisper、YouTube SEO 等術語，請保留正確拼法。\n\n"
-        f"影片標題：{title_seed}\n"
-        f"來源網址：{source_url or '未提供'}\n"
-        f"關鍵字候選：{keyword_text}\n\n"
-        "第二段條列草稿：\n"
-        f"{chr(10).join(summary_bullets)}\n\n"
-        "第三段 hashtag 草稿：\n"
-        f"{hashtag_line}\n\n"
-        "章節時間點草稿：\n"
-        f"{chapter_outline or '00:00 影片開始'}\n\n"
-        "章節內容素材：\n"
-        f"{chapter_seed}\n\n"
-        "轉錄內容節錄：\n"
-        f"{transcript_excerpt}"
-    )
-    return system_prompt, user_prompt
 
 
 def build_compact_local_advanced_seo_prompt(
@@ -1484,17 +1281,6 @@ def strip_code_fences(text: str) -> str:
     return cleaned.strip()
 
 
-def prune_extra_seo_sections(text: str) -> str:
-    cleaned = strip_code_fences(text).replace("\r\n", "\n")
-    cleaned = re.sub(r"^三、建議說明區文字\s*$", "三、關鍵字及標籤分析", cleaned, flags=re.MULTILINE)
-    cleaned = re.sub(
-        r"\n(?:五|六)、[^\n]*\n.*?(?=\n[一二三四五六七八九十]、|\Z)",
-        "\n",
-        cleaned,
-        flags=re.S,
-    )
-    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
-    return cleaned.strip()
 
 
 def content_blocks_to_text(content: Any) -> str:
@@ -1900,337 +1686,20 @@ def call_gemini_generate_content(config: AdvancedSeoConfig, system_prompt: str, 
     return strip_code_fences(content)
 
 
-def generate_advanced_seo_text(
-    transcript_text: str,
-    segments: list[dict[str, Any]],
-    base_title: str,
-    source_url: str | None,
-    config: AdvancedSeoConfig,
-) -> str:
-    system_prompt, user_prompt = build_advanced_seo_prompt(
-        transcript_text=transcript_text,
-        segments=segments,
-        base_title=base_title,
-        source_url=source_url,
-    )
-
-    if config.provider == "ollama":
-        content = call_ollama_chat(config, system_prompt, user_prompt)
-    elif config.provider in OPENAI_STYLE_PROVIDERS:
-        content = call_openai_style_chat(config, system_prompt, user_prompt)
-    elif config.provider in GEMINI_STYLE_PROVIDERS:
-        content = call_gemini_generate_content(config, system_prompt, user_prompt)
-    else:
-        raise RuntimeError("尚未支援這個模型服務商。")
-
-    content = prune_extra_seo_sections(content)
-    if source_url and "原始影片網址：" not in content:
-        content += f"\n\n原始影片網址：{source_url}"
-    return content + "\n"
 
 
-def build_advanced_seo_prompt(
-    transcript_text: str,
-    segments: list[dict[str, Any]],
-    base_title: str,
-    source_url: str | None = None,
-) -> tuple[str, str]:
-    keywords = top_keywords(transcript_text, base_title, limit=12)
-    chapters = build_chapters(segments, base_title)
-    context_chunks = chunk_segments_for_context(segments)
-    summary_bullets = build_summary_and_hook_bullets(transcript_text, base_title)
-    hashtag_line = build_hashtag_line(keywords, limit=10)
-    baseline_draft = build_seo_text(
-        transcript_text=transcript_text,
-        segments=segments,
-        base_title=base_title,
-        source_url=source_url,
-    )
-
-    chapter_lines: list[str] = []
-    for index, chunk in enumerate(context_chunks[:8], start=1):
-        fallback = f"章節 {index} 的內容重點"
-        summary = build_chapter_description(chunk["text"], fallback)
-        excerpt = chunk["text"][:220].rstrip()
-        if len(chunk["text"]) > 220:
-            excerpt += "…"
-        chapter_lines.append(
-            f"{format_hms(chunk['start'])} {summary}\n"
-            f"段落摘錄：{excerpt}"
-        )
-
-    chapter_seed = "\n\n".join(chapter_lines) if chapter_lines else "暫無章節摘要"
-    transcript_excerpt = build_transcript_excerpt(transcript_text)
-    chapter_outline = "\n".join(f"{timestamp} {title}" for timestamp, title in chapters)
-    keyword_text = "、".join(keywords[:10]) if keywords else "Whisper、字幕轉錄、YouTube"
-    title_seed = normalize_text(base_title) or "未命名影片"
-
-    system_prompt = (
-        "你是資深的繁體中文 YouTube 內容編輯與 SEO 文案師。"
-        "你的工作不是抄逐字稿，也不是把關鍵字排一排，而是先理解影片主題、目標觀眾、痛點、可獲得的價值，再把內容整理成可直接貼到 YouTube 的進階 SEO 稿。"
-        "只輸出最後成品，不要解釋你的推理過程。"
-        "所有文字一律使用繁體中文。OpenAI、ChatGPT、Whisper、YouTube、SEO、GPU、CUDA、NVIDIA、PyTorch、API、LLM 這些專有名詞必須保持正確英文。"
-        "你的文風要像真的內容編輯，不要像機器模板。標題要有角度差異；摘要要抓核心資訊；章節說明要寫出該段實際在談什麼、解決什麼、示範什麼。"
-        "不要照抄基礎草稿。若任一行和草稿有超過 12 個連續字相同，就代表重寫失敗。"
-        "嚴禁輸出：補充提醒、免責聲明、使用說明、第五段、第六段、Markdown 程式碼框、表格。"
-    )
-
-    user_prompt = (
-        "請根據下列素材，重寫成真正有可讀性、可上架、較像人類內容編輯完成的進階 SEO 檔。\n"
-        "請先在心中完成這四步，但不要把分析過程輸出：\n"
-        "1. 判斷這支影片最核心的主題與觀眾想解決的問題。\n"
-        "2. 從逐字稿中找出最值得點擊的亮點、方法、結果或提醒。\n"
-        "3. 把基礎草稿改寫成更自然、資訊密度更高、但不誇大的版本。\n"
-        "4. 讓章節目錄每段都像是『這段到底講了什麼』，而不是只有名詞。\n\n"
-        "輸出格式必須完全照下面四段，不可多也不可少：\n"
-        "一、建議標題 3 個\n"
-        "1. 搜尋型標題...\n"
-        "2. 亮點型標題...\n"
-        "3. 問題解答型標題...\n\n"
-        "二、內容摘要與鉤子\n"
-        "- 第一點...\n"
-        "- 第二點...\n"
-        "- 第三點...\n\n"
-        "三、分析關鍵字及標籤\n"
-        "#關鍵字,#關鍵字,#關鍵字\n\n"
-        "四、章節目錄\n"
-        "00:00 這段在說明什麼...\n\n"
-        "寫作規則：\n"
-        "- 全文只用繁體中文。\n"
-        "- 第二段總長控制在 300 字內，必須是條列式，每一點都要有明確資訊，不可空泛。\n"
-        "- 第三段只能輸出一行 hashtags，格式固定為 #關鍵字,#關鍵字,...，不要額外解說。\n"
-        "- 第四段每個章節都要點出該段的重要概念或結論，可用 1 到 2 句，但不可只列名詞，不可寫成『重點整理』這種空話。\n"
-        "- 標題三個方向必須有差異，不要只有換詞。\n"
-        "- 可以參考草稿，但不要直接照抄；請主動優化語氣、吸引力與資訊密度。\n"
-        "- 不要出現補充提醒、免責聲明、第五段、第六段。\n\n"
-        f"原始標題：{title_seed}\n"
-        f"來源網址：{source_url or '無'}\n"
-        f"關鍵字候選：{keyword_text}\n\n"
-        "基礎摘要草稿：\n"
-        f"{chr(10).join(summary_bullets)}\n\n"
-        "基礎 hashtags 草稿：\n"
-        f"{hashtag_line}\n\n"
-        "基礎章節草稿：\n"
-        f"{chapter_outline or '00:00 影片開場與主題說明'}\n\n"
-        "分段內容參考：\n"
-        f"{chapter_seed}\n\n"
-        "目前的基礎 SEO 初稿（請重寫，不要直接複製）：\n"
-        f"{baseline_draft}\n\n"
-        "逐字稿節錄：\n"
-        f"{transcript_excerpt}"
-    )
-    return system_prompt, user_prompt
 
 
-def split_structured_seo_sections(text: str) -> dict[str, str]:
-    cleaned = strip_code_fences(text).replace("\r\n", "\n").strip()
-    matches = list(re.finditer(r"^(一|二|三|四)、[^\n]+$", cleaned, flags=re.MULTILINE))
-    sections: dict[str, str] = {}
-    for index, match in enumerate(matches):
-        start = match.end()
-        end = matches[index + 1].start() if index + 1 < len(matches) else len(cleaned)
-        sections[match.group(1)] = cleaned[start:end].strip()
-    return sections
 
 
-def normalize_advanced_seo_content(content: str) -> str:
-    cleaned = prune_extra_seo_sections(content)
-    sections = split_structured_seo_sections(cleaned)
-    if not sections:
-        return cleaned
-
-    title_lines = [line.strip() for line in sections.get("一", "").splitlines() if line.strip()]
-    numbered_titles = [line for line in title_lines if re.match(r"^\d+\.\s*", line)]
-    if not numbered_titles:
-        raw_titles = [line for line in title_lines if line and not line.startswith("建議")]
-        numbered_titles = [f"{index}. {line}" for index, line in enumerate(raw_titles[:3], start=1)]
-    numbered_titles = numbered_titles[:3]
-
-    summary_lines = [line.strip() for line in sections.get("二", "").splitlines() if line.strip()]
-    summary_bullets = [
-        re.sub(r"^[-*•]\s*", "", line).strip()
-        for line in summary_lines
-        if re.match(r"^[-*•]\s*", line)
-    ]
-    summary_paragraph_parts = [
-        line for line in summary_lines
-        if not re.match(r"^[-*•]\s*", line)
-        and line not in {"核心重點：", "重點：", "摘要："}
-    ]
-    summary_paragraph = " ".join(summary_paragraph_parts).strip()
-    if len(summary_paragraph) > 300:
-        summary_paragraph = summary_paragraph[:299].rstrip("，。、；： ") + "。"
-    summary_bullets = [f"- {item}" for item in summary_bullets[:3] if item]
-
-    hashtag_matches = re.findall(r"#[0-9A-Za-z\u4e00-\u9fff_+-]+", sections.get("三", ""))
-    unique_tags: list[str] = []
-    for tag in hashtag_matches:
-        if tag not in unique_tags:
-            unique_tags.append(tag)
-    hashtag_line = ",".join(unique_tags)
-
-    chapter_lines = []
-    for raw_line in sections.get("四", "").splitlines():
-        line = raw_line.strip()
-        if not re.match(r"^\d{2}:\d{2}(?::\d{2})?\s+", line):
-            continue
-        timestamp, text = line.split(" ", 1)
-        text = re.sub(r"^(這段在說明什麼[:：]?\s*|這段在說明[:：]?\s*|本段在介紹[:：]?\s*|本段介紹[:：]?\s*)", "", text).strip()
-        chapter_lines.append(f"{timestamp} {text}")
-
-    blocks = [
-        "一、建議標題 3 個",
-        *numbered_titles,
-        "",
-        "二、內容摘要",
-        summary_paragraph,
-        "",
-        *summary_bullets,
-        "",
-        "三、關鍵字與標籤",
-        hashtag_line,
-        "",
-        "四、章節目錄",
-        *chapter_lines,
-    ]
-    return "\n".join(item for item in blocks if item is not None).strip()
 
 
-def looks_generic_chapter_line(line: str) -> bool:
-    text = re.sub(r"^\d{2}:\d{2}(?::\d{2})?\s*", "", normalize_text(line)).strip()
-    if not text:
-        return True
-    generic_phrases = {
-        "重點整理",
-        "段落重點",
-        "內容摘要",
-        "重點說明",
-        "更多內容",
-        "章節重點",
-        "觀念整理",
-        "延伸說明",
-    }
-    if text in generic_phrases:
-        return True
-    keyword_count = len(re.findall(r"[\u4e00-\u9fff]{2,}|[A-Za-z]{2,}", text))
-    has_sentence_tone = bool(re.search(r"[。！？]", text)) or "說明" in text or "介紹" in text or "解析" in text
-    return len(text) < 10 or keyword_count < 2 or not has_sentence_tone
 
 
-def advanced_seo_quality_issues(content: str, baseline_draft: str, expected_chapters: int) -> list[str]:
-    cleaned = prune_extra_seo_sections(content)
-    sections = split_structured_seo_sections(cleaned)
-    issues: list[str] = []
-
-    for key in ("一", "二", "三", "四"):
-        if key not in sections:
-            issues.append(f"缺少第 {key} 段。")
-
-    title_lines = [line.strip() for line in sections.get("一", "").splitlines() if re.match(r"^\d+\.\s*", line.strip())]
-    if len(title_lines) < 3:
-        issues.append("建議標題不足 3 個。")
-
-    summary_lines = [line.strip() for line in sections.get("二", "").splitlines() if line.strip().startswith("-")]
-    if len(summary_lines) < 3:
-        issues.append("內容摘要與鉤子不是完整 3 點條列。")
-    summary_char_count = len("".join(line.lstrip("- ").strip() for line in summary_lines))
-    if summary_char_count > 300:
-        issues.append("內容摘要與鉤子超過 300 字。")
-
-    hashtag_text = re.sub(r"\s+", "", sections.get("三", ""))
-    hashtags = [item for item in hashtag_text.split(",") if item]
-    if len(hashtags) < 3 or not all(item.startswith("#") for item in hashtags):
-        issues.append("關鍵字及標籤沒有正確輸出成 hashtags。")
-
-    chapter_lines = [
-        line.strip()
-        for line in sections.get("四", "").splitlines()
-        if re.match(r"^\d{2}:\d{2}(?::\d{2})?\s+", line.strip())
-    ]
-    min_chapters = max(3, min(expected_chapters or 3, 5))
-    if len(chapter_lines) < min_chapters:
-        issues.append("章節目錄數量太少。")
-    elif sum(1 for line in chapter_lines if looks_generic_chapter_line(line)) >= max(1, len(chapter_lines) // 2):
-        issues.append("章節目錄仍然太像關鍵字拼接，缺少實際內容說明。")
-
-    similarity = SequenceMatcher(
-        None,
-        re.sub(r"\s+", "", normalize_text(cleaned)),
-        re.sub(r"\s+", "", normalize_text(baseline_draft)),
-    ).ratio()
-    if similarity >= 0.82:
-        issues.append("整體內容和基礎草稿太像，沒有真正重寫。")
-
-    if "補充提醒" in cleaned or "五、" in cleaned or "六、" in cleaned:
-        issues.append("出現多餘段落或補充提醒。")
-
-    return issues
 
 
-def build_advanced_seo_retry_prompt(
-    original_user_prompt: str,
-    first_pass: str,
-    issues: list[str],
-) -> tuple[str, str]:
-    retry_system_prompt = (
-        "你現在在做第二輪精修。"
-        "上一版太像草稿或章節過於空泛，請整份重寫，不要只修幾個字。"
-        "你必須讓這份成品更像人類內容編輯寫出來的版本，保留事實，但提升可讀性、吸引力與內容密度。"
-    )
-    retry_user_prompt = (
-        f"{original_user_prompt}\n\n"
-        "上一版不合格，請整份重新輸出。\n"
-        "這次必須修正的問題：\n"
-        f"{chr(10).join(f'- {issue}' for issue in issues[:8])}\n\n"
-        "上一版內容如下，請不要沿用原句：\n"
-        f"{first_pass}"
-    )
-    return retry_system_prompt, retry_user_prompt
 
 
-def generate_advanced_seo_text(
-    transcript_text: str,
-    segments: list[dict[str, Any]],
-    base_title: str,
-    source_url: str | None,
-    config: AdvancedSeoConfig,
-) -> str:
-    system_prompt, user_prompt = build_advanced_seo_prompt(
-        transcript_text=transcript_text,
-        segments=segments,
-        base_title=base_title,
-        source_url=source_url,
-    )
-    baseline_draft = build_seo_text(
-        transcript_text=transcript_text,
-        segments=segments,
-        base_title=base_title,
-        source_url=source_url,
-    )
-    expected_chapters = len(build_chapters(segments, base_title))
-
-    def request_content(system_text: str, user_text: str) -> str:
-        if config.provider == "ollama":
-            return call_ollama_chat(config, system_text, user_text)
-        if config.provider in OPENAI_STYLE_PROVIDERS:
-            return call_openai_style_chat(config, system_text, user_text)
-        if config.provider in GEMINI_STYLE_PROVIDERS:
-            return call_gemini_generate_content(config, system_text, user_text)
-        raise RuntimeError("目前不支援這個進階 SEO 提供者。")
-
-    content = prune_extra_seo_sections(request_content(system_prompt, user_prompt))
-    quality_issues = advanced_seo_quality_issues(content, baseline_draft, expected_chapters)
-    if quality_issues:
-        retry_system_prompt, retry_user_prompt = build_advanced_seo_retry_prompt(
-            user_prompt,
-            content,
-            quality_issues,
-        )
-        content = prune_extra_seo_sections(request_content(retry_system_prompt, retry_user_prompt))
-
-    if source_url and "影片來源：" not in content:
-        content += f"\n\n影片來源：{source_url}"
-    return content + "\n"
 
 
 def probe_media_duration(file_path: str) -> float | None:
@@ -2622,6 +2091,8 @@ def build_env_check() -> dict[str, Any]:
         }
     except ImportError:
         results["whisper"] = {"ok": False, "label": "openai-whisper", "version": None, "note": "尚未安裝"}
+    except Exception as exc:
+        results["whisper"] = {"ok": False, "label": "openai-whisper", "version": None, "note": "載入失敗，請重新執行 start.bat 或重建 .venv：" + str(exc)}
 
     try:
         import yt_dlp
@@ -2638,6 +2109,8 @@ def build_env_check() -> dict[str, Any]:
         }
     except ImportError:
         results["yt_dlp"] = {"ok": False, "label": "yt-dlp", "version": None, "note": "尚未安裝"}
+    except Exception as exc:
+        results["yt_dlp"] = {"ok": False, "label": "yt-dlp", "version": None, "note": "載入失敗，請重新執行 start.bat 或重建 .venv：" + str(exc)}
 
     if requests is not None:
         results["requests"] = {
@@ -2645,6 +2118,13 @@ def build_env_check() -> dict[str, Any]:
             "label": "requests",
             "version": getattr(requests, "__version__", ""),
             "note": "可用於連接本地或雲端模型服務",
+        }
+    elif REQUESTS_IMPORT_ERROR is not None:
+        results["requests"] = {
+            "ok": False,
+            "label": "requests",
+            "version": None,
+            "note": "載入失敗，請重新執行 start.bat 或重建 .venv：" + str(REQUESTS_IMPORT_ERROR),
         }
     else:
         results["requests"] = {"ok": False, "label": "requests", "version": None, "note": "尚未安裝"}
@@ -2688,7 +2168,7 @@ def build_env_check() -> dict[str, Any]:
             "note": torch_note,
         }
     else:
-        results["torch"] = {"ok": False, "label": "PyTorch", "version": None, "note": "尚未安裝"}
+        results["torch"] = {"ok": False, "label": "PyTorch", "version": None, "note": torch_info.get("cuda_issue") or "尚未安裝"}
 
     ffmpeg_path = shutil.which("ffmpeg")
     if ffmpeg_path:

@@ -162,6 +162,18 @@
 4. `app.py`
 5. `index.html`
 
-## GitHub
+## 2026-07-19 驗證與優化紀錄
 
-- Repo：<https://github.com/vincentchiou/whisper>
+- 本輪角色：專案驗證經理，已做程式碼、API、環境與安全檢查。
+- `app.py` 已清除大量被後面同名函式覆蓋的 SEO 死碼，減少維護風險；驗證結果為 `no duplicates`。
+- `/env-check` 已補強套件損壞診斷：`requests`、`openai-whisper`、`yt-dlp`、`PyTorch` 匯入失敗時會回傳可讀錯誤，不再讓端點直接 500。
+- `inspect_torch_cuda()` 已補上 PyTorch DLL 載入失敗處理，會提示重新執行 `start.bat` 或重建 `.venv`。
+- 系統 Python smoke test 通過：`/`、`/env-check`、`/device-info`、`/cuda-diagnose`、`/llm/providers` 皆回 200。
+- 專案 `.venv` 目前仍需修復：已偵測到 PyTorch `cupti64_2025.1.1.dll` 載入失敗，以及 `requests / yt-dlp` 相關 `marshal data too short`，判斷為虛擬環境或套件 bytecode 損壞。
+- `.venv` 修復前，Whisper 轉錄、VAD、YouTube 下載與進階模型 API 仍可能無法在 `start.bat` 實際環境正常運作。
+- 下一步若要提升實際轉錄效能，優先重建 `.venv` 並確認 CUDA 版 PyTorch 可在 RTX 5060 Ti 上正常匯入與建立 CUDA tensor。
+
+## 目前 GitHub Repo
+
+- GitHub Repo：<https://github.com/vincentchiou/whisper>
+- 發布前仍需保留安全掃描規則，避免 API key、token、secret、password、個人憑證進入 repo。

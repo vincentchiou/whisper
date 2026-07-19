@@ -94,6 +94,23 @@ Whisper 字幕神器 V2 是一個給 Windows 使用者的本機字幕工具，�
 
 如果 VAD 偵測失敗，系統會自動退回一般 Whisper 流程，不會直接中斷整次任務。
 
+## 驗證與環境診斷
+
+2026-07-19 已完成一輪專案驗證與程式碼整理：
+
+- `app.py` 已移除被後面同名函式覆蓋的 SEO 死碼，降低後續維護與除錯風險。
+- 核心 Flask API smoke test 通過：`/`、`/env-check`、`/device-info`、`/cuda-diagnose`、`/llm/providers`。
+- `/env-check` 已可區分「尚未安裝」與「套件已安裝但損壞 / DLL 載入失敗」。
+- PyTorch DLL、`requests` bytecode、`yt-dlp` 依賴損壞時，會在環境檢查中顯示可讀錯誤，不會讓端點直接 500。
+
+若環境檢查出現 `marshal data too short`、`PyTorch 載入失敗`、`cupti64_2025.1.1.dll` 或類似 DLL 錯誤，通常代表專案 `.venv` 已損壞。建議先關閉伺服器後重建 `.venv`，再重新執行 `start.bat`。
+
+實際轉錄效能的關鍵檢查順序：
+
+1. `.venv` 內的 `torch` 可正常匯入。
+2. `/cuda-diagnose` 顯示 CUDA 可用。
+3. RTX 50 系列 GPU 使用 CUDA 12.8 版 PyTorch wheel。
+4. Whisper 模型實際跑在 GPU，而不是退回 CPU。
 ## 啟動方式
 
 在專案資料夾直接執行：
@@ -131,12 +148,12 @@ silero-vad
 
 ## 主要檔案
 
-- [app.py](</H:/我的雲端硬碟/Claude/專案-Whisper - GPT/app.py>)
-- [index.html](</H:/我的雲端硬碟/Claude/專案-Whisper - GPT/index.html>)
-- [start.bat](</H:/我的雲端硬碟/Claude/專案-Whisper - GPT/start.bat>)
-- [requirements.txt](</H:/我的雲端硬碟/Claude/專案-Whisper - GPT/requirements.txt>)
-- [memory.md](</H:/我的雲端硬碟/Claude/專案-Whisper - GPT/memory.md>)
-- [SKILL.md](</H:/我的雲端硬碟/Claude/專案-Whisper - GPT/SKILL.md>)
+- [app.py](</H:/我的雲端硬碟/Agent/project/專案-Whisper - GPT/app.py>)
+- [index.html](</H:/我的雲端硬碟/Agent/project/專案-Whisper - GPT/index.html>)
+- [start.bat](</H:/我的雲端硬碟/Agent/project/專案-Whisper - GPT/start.bat>)
+- [requirements.txt](</H:/我的雲端硬碟/Agent/project/專案-Whisper - GPT/requirements.txt>)
+- [memory.md](</H:/我的雲端硬碟/Agent/project/專案-Whisper - GPT/memory.md>)
+- [SKILL.md](</H:/我的雲端硬碟/Agent/project/專案-Whisper - GPT/SKILL.md>)
 
 ## 發布前規則
 
